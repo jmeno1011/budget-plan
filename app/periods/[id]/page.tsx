@@ -1,0 +1,252 @@
+"use client"
+
+import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
+import { format, parseISO } from "date-fns"
+import { enGB } from "date-fns/locale"
+import { ArrowLeft, Wallet } from "lucide-react"
+import { ExpenseForm } from "@/components/expense-form"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import type { Period, Expense } from "@/lib/types"
+import { auth, db } from "@/lib/firebase"
+import { onAuthStateChanged, type User } from "firebase/auth"
+import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore"
+
+const EDIT_STORAGE_KEY = "budget-plan-edit-period"
+const LEGACY_EDIT_STORAGE_KEY = "pound-tracker-edit-period"
+
+export default function PeriodEditPage() {
+  const params = useParams<{ id: string }>()
+  const periodId = Array.isArray(params?.id) ? params.id[0] : params?.id
+  const router = useRouter()
+  const [periods, setPeriods] = useState<Period[]>([])
+  const [period, setPeriod] = useState<Period | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [authReady, setAuthReady] = useState(false)
+  const dirtyRef = useRef(false)
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser)
+      setAuthReady(true)
+      if (!currentUser) {
+        router.replace("/login")
+      }
+    })
+    return () => unsub()
+  }, [router])
+
+  useEffect(() => {
+    if (!authReady || !user || !periodId) {
+      if (authReady && !user) {
+        setIsLoaded(true)
+      }
+      return
+    }
+
+    let unsub: (() => void) | undefined
+
+    const setup = async () => {
+      try {
+        unsub = onSnapshot(
+          doc(db, "expense_track", user.uid),
+          (snap) => {
+            const data = snap.data()
+            const loadedPeriods = (data?.periods as Period[]) || []
+            setPeriods(loadedPeriods)
+            const found = loadedPeriods.find((p) => p.id === periodId) || null
+            if (!dirtyRef.current) {
+              if (found) {
+                setPeriod(found)
+              } else {
+                const draft =
+                  sessionStorage.getItem(EDIT_STORAGE_KEY) ||
+                  sessionStorage.getItem(LEGACY_EDIT_STORAGE_KEY)
+                if (draft) {
+                  try {
+                    const parsedDraft = JSON.parse(draft) as Period
+                    if (parsedDraft?.id === periodId) {
+                      setPeriod(parsedDraft)
+                      if (!loadedPeriods.find((p) => p.id === parsedDraft.id)) {
+                        setPeriods([parsedDraft, ...loadedPeriods])
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Failed to parse edit period")
+                  }
+                }
+              }
+            }
+            setIsLoaded(true)
+          },
+          () => {
+            setIsLoaded(true)
+          },
+        )
+      } catch (e) {
+        console.error("Failed to load periods")
+        setIsLoaded(true)
+      }
+    }
+
+    setup()
+
+    return () => {
+      if (unsub) unsub()
+    }
+  }, [authReady, user, periodId])
+
+  const handleExpenseUpdate = (updatedExpense: Expense) => {
+    dirtyRef.current = true
+    setPeriod((prev) => {
+      if (!prev) return prev
+      const updatedExpenses = prev.expenses.map((exp) =>
+        exp.id === updatedExpense.id ? updatedExpense : exp
+      )
+      return { ...prev, expenses: updatedExpenses }
+    })
+  }
+
+  const handleBudgetChange = (value: string) => {
+    dirtyRef.current = true
+    setPeriod((prev) => {
+      if (!prev) return prev
+      if (value === "") {
+        return { ...prev, budget: undefined }
+      }
+      const parsed = Number(value)
+      if (Number.isNaN(parsed)) return prev
+      return { ...prev, budget: parsed }
+    })
+  }
+
+  const handleSave = () => {
+    if (!period || !user) return
+    const hasExisting = periods.some((p) => p.id === period.id)
+    const updated = hasExisting
+      ? periods.map((p) => (p.id === period.id ? period : p))
+      : [period, ...periods]
+    setDoc(
+      doc(db, "expense_track", user.uid),
+      { periods: updated, updatedAt: serverTimestamp() },
+      { merge: true },
+    )
+      .then(() => {
+        dirtyRef.current = false
+        router.push("/")
+      })
+      .catch(() => {
+        dirtyRef.current = false
+        router.push("/")
+      })
+  }
+
+  const formatDate = (dateStr: string) => {
+    return format(parseISO(dateStr), "d MMM yyyy", { locale: enGB })
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!period) {
+    return (
+      <main className="min-h-screen bg-background">
+        <div className="mx-auto max-w-4xl px-3 py-4 sm:px-4 sm:py-8">
+          <div className="mb-6 flex items-center gap-3">
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/" aria-label="Back">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <h1 className="text-lg font-semibold text-foreground sm:text-xl">
+              Period not found
+            </h1>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            It may have been deleted or the link is invalid.
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <div className="mx-auto max-w-4xl px-3 py-4 sm:px-4 sm:py-8">
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/" aria-label="Back">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-lg font-semibold text-foreground sm:text-2xl">
+                Edit {period.name}
+              </h1>
+              <p className="text-xs text-muted-foreground sm:text-sm">
+                {formatDate(period.startDate)} ~ {formatDate(period.endDate)}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href="/">Cancel</Link>
+            </Button>
+            <Button onClick={handleSave} className="w-full sm:w-auto">
+              Save
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
+            <h2 className="text-base font-semibold text-foreground sm:text-lg">
+              Edit spending entries
+            </h2>
+          </div>
+          <div className="mb-4 grid gap-2 sm:grid-cols-2 sm:items-center">
+            <Label
+              htmlFor="period-budget"
+              className="text-sm text-muted-foreground sm:text-right"
+            >
+              Budget (optional)
+            </Label>
+            <Input
+              id="period-budget"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="e.g. 1200.00"
+              value={period.budget ?? ""}
+              onChange={(e) => handleBudgetChange(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              className="bg-background border-border text-foreground placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="space-y-2 sm:space-y-3">
+            {period.expenses.map((expense) => (
+              <ExpenseForm
+                key={expense.id}
+                expense={expense}
+                onUpdate={handleExpenseUpdate}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </main>
+  )
+}
