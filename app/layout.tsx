@@ -32,6 +32,18 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`font-sans antialiased`} suppressHydrationWarning>
         <PageTransition>{children}</PageTransition>
+        <footer className="border-t border-border bg-card/50">
+          <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
+            <div className="flex flex-col items-center justify-between gap-3 text-center md:flex-row md:text-left">
+              <p className="text-sm text-muted-foreground">
+                Budget Plan · Free to use · by Doh Kim
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Questions? Please contact whltn8282@gmail.com
+              </p>
+            </div>
+          </div>
+        </footer>
         <Analytics />
       </body>
     </html>

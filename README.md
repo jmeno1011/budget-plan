@@ -78,6 +78,9 @@ Note: currently only **new period creation** is synced. Offline edits/deletes ar
 - Dev server: `npm run dev`
 - Build: `npm run build`
 - Start: `npm run start`
+- Unit tests: `npm run test`
+- Watch mode: `npm run test:watch`
+- E2E tests: `npm run test:e2e`
 
 ---
 
