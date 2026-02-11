@@ -215,7 +215,18 @@
 }
 
 .page-transition {
-  animation: page-fade-in 180ms ease-out;
+  min-height: 100svh;
+  will-change: opacity, transform;
+}
+
+.page-transition--active {
+  animation: page-fade-in 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition--active {
+    animation: none;
+  }
 }
 
 @keyframes page-fade-in {

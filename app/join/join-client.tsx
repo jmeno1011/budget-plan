@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { auth, db, googleProvider } from "@/lib/firebase"
+import { collectionName } from "@/lib/firestore-paths"
 import {
   onAuthStateChanged,
   signInWithPopup,
@@ -43,7 +44,9 @@ export default function JoinClient() {
       setStatus("joining")
       setError(null)
       try {
-        const inviteSnap = await getDoc(doc(db, "shared_budget_invites", code))
+        const inviteSnap = await getDoc(
+          doc(db, collectionName("shared_budget_invites"), code),
+        )
         if (!inviteSnap.exists()) {
           setStatus("error")
           setError("Invalid or expired invite link.")
@@ -57,7 +60,7 @@ export default function JoinClient() {
           return
         }
         await setDoc(
-          doc(db, "shared_budgets", budgetId),
+          doc(db, collectionName("shared_budgets"), budgetId),
           {
             memberUids: arrayUnion(user.uid),
             members: arrayUnion({
@@ -70,7 +73,7 @@ export default function JoinClient() {
           { merge: true },
         )
         await setDoc(
-          doc(db, "shared_budget_invites", code),
+          doc(db, collectionName("shared_budget_invites"), code),
           { usedBy: arrayUnion(user.uid) },
           { merge: true },
         )

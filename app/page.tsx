@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { HeroSection } from "@/components/hero-section";
 import { SignInCard } from "@/components/sign-in-card";
@@ -8,6 +8,7 @@ import { PeriodSelector } from "@/components/period-selector";
 import { PeriodCard } from "@/components/period-card";
 import { SpendingChart } from "@/components/spending-chart";
 import { SummaryStats } from "@/components/summary-stats";
+import { FixedExpensesCard } from "@/components/fixed-expenses-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,19 +17,28 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { Period } from "@/lib/types";
+import type { FixedExpense, Period } from "@/lib/types";
 import { Plus, Wallet } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { collectionName } from "@/lib/firestore-paths";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [personalPeriods, setPersonalPeriods] = useState<Period[]>([]);
+  const [personalFixedExpenses, setPersonalFixedExpenses] = useState<
+    FixedExpense[]
+  >([]);
   const [isCreatePersonalOpen, setIsCreatePersonalOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const personalFixedTotal = useMemo(
+    () =>
+      personalFixedExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [personalFixedExpenses],
+  );
 
   const getPendingKey = (uid: string) => `budget-plan-pending-personal:${uid}`;
   const getLegacyPendingKey = (uid: string) =>
@@ -106,7 +116,7 @@ export default function Home() {
     const merged = [...missing, ...loadedPeriods];
     try {
       await setDoc(
-        doc(db, "expense_track", uid),
+        doc(db, collectionName("expense_track"), uid),
         {
           ownerUid: uid,
           periods: merged,
@@ -151,11 +161,13 @@ export default function Home() {
       });
     }
     const unsub = onSnapshot(
-      doc(db, "expense_track", user.uid),
+      doc(db, collectionName("expense_track"), user.uid),
       (snap) => {
         const data = snap.data();
         const loadedPeriods = (data?.periods as Period[]) || [];
+        const loadedFixed = (data?.fixedExpenses as FixedExpense[]) || [];
         setPersonalPeriods(loadedPeriods);
+        setPersonalFixedExpenses(loadedFixed);
         void flushPendingPeriods(user.uid, loadedPeriods);
         setIsLoaded(true);
       },
@@ -172,7 +184,7 @@ export default function Home() {
     if (!navigator.onLine) return;
     try {
       await setDoc(
-        doc(db, "expense_track", user.uid),
+        doc(db, collectionName("expense_track"), user.uid),
         {
           ownerUid: user.uid,
           periods: nextPeriods,
@@ -195,7 +207,7 @@ export default function Home() {
       return;
     }
     setDoc(
-      doc(db, "expense_track", user.uid),
+      doc(db, collectionName("expense_track"), user.uid),
       {
         ownerUid: user.uid,
         periods: next,
@@ -210,6 +222,29 @@ export default function Home() {
 
   const handleDeletePeriod = (id: string) => {
     savePersonalPeriods(personalPeriods.filter((p) => p.id !== id));
+  };
+
+  const savePersonalFixedExpenses = async (next: FixedExpense[]) => {
+    if (!user) return;
+    setPersonalFixedExpenses(next);
+    if (!navigator.onLine) return;
+    try {
+      await setDoc(
+        doc(db, collectionName("expense_track"), user.uid),
+        { fixedExpenses: next, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+    } catch (e) {
+      console.error("Failed to save fixed expenses", e);
+    }
+  };
+
+  const handleAddFixedExpense = (expense: FixedExpense) => {
+    savePersonalFixedExpenses([expense, ...personalFixedExpenses]);
+  };
+
+  const handleDeleteFixedExpense = (id: string) => {
+    savePersonalFixedExpenses(personalFixedExpenses.filter((e) => e.id !== id));
   };
 
   if (!isLoaded) {
@@ -392,35 +427,61 @@ export default function Home() {
             </Link>
           </div>
 
-          <Dialog
-            open={isCreatePersonalOpen}
-            onOpenChange={setIsCreatePersonalOpen}
-          >
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                Add period
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add a new period</DialogTitle>
-              </DialogHeader>
-              <PeriodSelector
-                onCreatePeriod={handleCreatePeriod}
-                onCreated={() => setIsCreatePersonalOpen(false)}
-                variant="plain"
-                showTitle={false}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="whitespace-nowrap">
+                  Fixed £{personalFixedTotal.toFixed(2)}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Fixed expenses</DialogTitle>
+                </DialogHeader>
+                <FixedExpensesCard
+                  items={personalFixedExpenses}
+                  onAdd={handleAddFixedExpense}
+                  onDelete={handleDeleteFixedExpense}
+                />
+              </DialogContent>
+            </Dialog>
+            <Dialog
+              open={isCreatePersonalOpen}
+              onOpenChange={setIsCreatePersonalOpen}
+            >
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add period
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add a new period</DialogTitle>
+                </DialogHeader>
+                <PeriodSelector
+                  onCreatePeriod={handleCreatePeriod}
+                  onCreated={() => setIsCreatePersonalOpen(false)}
+                  variant="plain"
+                  showTitle={false}
+                  fixedExpenses={personalFixedExpenses}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <div className="mb-4 sm:mb-5">
-          <SummaryStats periods={personalPeriods} />
+          <SummaryStats
+            periods={personalPeriods}
+            fixedExpenses={personalFixedExpenses}
+          />
         </div>
         <div className="mb-4 sm:mb-5">
-          <SpendingChart periods={personalPeriods} />
+          <SpendingChart
+            periods={personalPeriods}
+            fixedExpenses={personalFixedExpenses}
+          />
         </div>
         <div className="space-y-4 sm:space-y-5">
           <div>
@@ -445,6 +506,7 @@ export default function Home() {
                     key={period.id}
                     period={period}
                     onDelete={handleDeletePeriod}
+                    fixedExpenses={personalFixedExpenses}
                   />
                 ))}
               </div>
@@ -466,7 +528,7 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="group rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/30 hover:shadow-md">
+    <div className="group rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/80 hover:shadow-xl hover:shadow-primary/20">
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
         {icon}
       </div>

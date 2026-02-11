@@ -23,22 +23,31 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { CATEGORIES, type Period } from "@/lib/types"
+import { CATEGORIES, type FixedExpense, type Period } from "@/lib/types"
 
 interface PeriodCardProps {
   period: Period
   onDelete: (id: string) => void
   editHref?: string
+  fixedExpenses?: FixedExpense[]
 }
 
-export function PeriodCard({ period, onDelete, editHref }: PeriodCardProps) {
+export function PeriodCard({
+  period,
+  onDelete,
+  editHref,
+  fixedExpenses = [],
+}: PeriodCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const editStorageKey = "budget-plan-edit-period"
 
-  const total = period.expenses.reduce((sum, exp) => sum + exp.amount, 0)
+  const baseTotal = period.expenses.reduce((sum, exp) => sum + exp.amount, 0)
+  const fixedTotal = fixedExpenses.reduce((sum, item) => sum + item.amount, 0)
+  const totalSpent =
+    baseTotal + (period.includeFixedExpenses ? fixedTotal : 0)
   const budget = period.budget
   const remaining =
-    typeof budget === "number" ? Number(budget) - total : undefined
+    typeof budget === "number" ? Number(budget) - totalSpent : undefined
   
   const categoryTotals = period.expenses.reduce((acc, exp) => {
     if (exp.category && exp.amount !== 0) {
@@ -96,7 +105,7 @@ export function PeriodCard({ period, onDelete, editHref }: PeriodCardProps) {
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <div className="text-right">
             <p className="text-xs text-muted-foreground hidden sm:block">Total spent</p>
-            <p className="text-base font-bold text-primary sm:text-xl">{formatMoney(total)}</p>
+            <p className="text-base font-bold text-primary sm:text-xl">{formatMoney(totalSpent)}</p>
             {typeof budget === "number" && (
               <p className="text-xs text-muted-foreground">
                 Budget {formatMoney(budget)} ·{" "}
@@ -170,6 +179,40 @@ export function PeriodCard({ period, onDelete, editHref }: PeriodCardProps) {
 
       {isExpanded && (
         <div className="border-t border-border p-2.5 sm:p-4">
+          {period.includeFixedExpenses && (
+            <div className="mb-3 rounded-lg border border-border bg-background p-2.5 sm:p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground">
+                  Fixed expenses
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Total {formatMoney(fixedTotal)}
+                </p>
+              </div>
+              {fixedExpenses.length === 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  No fixed expenses yet.
+                </p>
+              ) : (
+                <div className="mt-2 space-y-1.5">
+                  {fixedExpenses.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-xs"
+                    >
+                      <span className="truncate text-foreground">
+                        {item.name}
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {formatMoney(item.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mb-2.5 flex items-center justify-between sm:mb-3">
             <p className="text-sm font-medium text-foreground">Spending entries</p>
             <Button asChild variant="outline" size="sm" className="sm:hidden">

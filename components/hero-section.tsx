@@ -12,11 +12,11 @@ export function HeroSection() {
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
           Track personal and shared budgets in real time. Stay aligned with
-          housemates, monitor spending, and keep refunds visible.
+          housemates, monitor spending, and keep all shared expenses clear.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-4">
+      <div className="grid gap-3 sm:grid-cols-2 sm:items-stretch">
+        <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
             <Wallet className="h-4 w-4 text-primary" />
           </div>
@@ -27,7 +27,7 @@ export function HeroSection() {
             Separate personal budgets from shared household ledgers.
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
             <Wallet className="h-4 w-4 text-primary" />
           </div>

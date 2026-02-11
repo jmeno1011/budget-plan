@@ -13,6 +13,13 @@ export interface Period {
   endDate: string
   expenses: Expense[]
   budget?: number
+  includeFixedExpenses?: boolean
+}
+
+export interface FixedExpense {
+  id: string
+  name: string
+  amount: number
 }
 
 export interface SharedBudget {
@@ -27,6 +34,8 @@ export interface SharedBudget {
     email?: string
   }>
   periods: Period[]
+  fixedExpenses?: FixedExpense[]
+  inviteCode?: string
 }
 
 export const CATEGORIES = [

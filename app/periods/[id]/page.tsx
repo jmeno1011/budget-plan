@@ -5,13 +5,15 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { enGB } from "date-fns/locale"
-import { ArrowLeft, Wallet } from "lucide-react"
+import { ArrowLeft, Repeat, Wallet } from "lucide-react"
 import { ExpenseForm } from "@/components/expense-form"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { Period, Expense } from "@/lib/types"
+import type { FixedExpense, Period, Expense } from "@/lib/types"
 import { auth, db } from "@/lib/firebase"
+import { collectionName } from "@/lib/firestore-paths"
 import { onAuthStateChanged, type User } from "firebase/auth"
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore"
 
@@ -24,6 +26,7 @@ export default function PeriodEditPage() {
   const router = useRouter()
   const [periods, setPeriods] = useState<Period[]>([])
   const [period, setPeriod] = useState<Period | null>(null)
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [authReady, setAuthReady] = useState(false)
@@ -53,11 +56,13 @@ export default function PeriodEditPage() {
     const setup = async () => {
       try {
         unsub = onSnapshot(
-          doc(db, "expense_track", user.uid),
+          doc(db, collectionName("expense_track"), user.uid),
           (snap) => {
             const data = snap.data()
             const loadedPeriods = (data?.periods as Period[]) || []
+            const loadedFixed = (data?.fixedExpenses as FixedExpense[]) || []
             setPeriods(loadedPeriods)
+            setFixedExpenses(loadedFixed)
             const found = loadedPeriods.find((p) => p.id === periodId) || null
             if (!dirtyRef.current) {
               if (found) {
@@ -124,6 +129,14 @@ export default function PeriodEditPage() {
     })
   }
 
+  const handleIncludeFixedChange = (value: boolean) => {
+    dirtyRef.current = true
+    setPeriod((prev) => {
+      if (!prev) return prev
+      return { ...prev, includeFixedExpenses: value }
+    })
+  }
+
   const handleSave = () => {
     if (!period || !user) return
     const hasExisting = periods.some((p) => p.id === period.id)
@@ -131,7 +144,7 @@ export default function PeriodEditPage() {
       ? periods.map((p) => (p.id === period.id ? period : p))
       : [period, ...periods]
     setDoc(
-      doc(db, "expense_track", user.uid),
+      doc(db, collectionName("expense_track"), user.uid),
       { periods: updated, updatedAt: serverTimestamp() },
       { merge: true },
     )
@@ -148,6 +161,18 @@ export default function PeriodEditPage() {
   const formatDate = (dateStr: string) => {
     return format(parseISO(dateStr), "d MMM yyyy", { locale: enGB })
   }
+
+  const formatMoney = (value: number) => {
+    if (value < 0) {
+      return `-£${Math.abs(value).toFixed(2)}`
+    }
+    return `£${value.toFixed(2)}`
+  }
+
+  const fixedTotal = fixedExpenses.reduce((sum, item) => sum + item.amount, 0)
+  const baseTotal = period?.expenses.reduce((sum, exp) => sum + exp.amount, 0) ?? 0
+  const totalSpent =
+    baseTotal + (period?.includeFixedExpenses ? fixedTotal : 0)
 
   if (!isLoaded) {
     return (
@@ -195,6 +220,9 @@ export default function PeriodEditPage() {
               </h1>
               <p className="text-xs text-muted-foreground sm:text-sm">
                 {formatDate(period.startDate)} ~ {formatDate(period.endDate)}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-foreground sm:text-sm">
+                Total spent {formatMoney(totalSpent)}
               </p>
             </div>
           </div>
@@ -245,6 +273,66 @@ export default function PeriodEditPage() {
               />
             ))}
           </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-border bg-card p-4 sm:mt-6 sm:p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <Repeat className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-base font-semibold text-foreground sm:text-lg">
+                Fixed expenses
+              </h2>
+              <p className="text-xs text-muted-foreground sm:text-sm">
+                Recurring costs for this budget.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="include-fixed-expenses-edit"
+                checked={Boolean(period.includeFixedExpenses)}
+                onCheckedChange={(value) =>
+                  handleIncludeFixedChange(value === true)
+                }
+                className="h-5 w-5 border-primary/40 data-[state=checked]:border-primary"
+              />
+              <Label
+                htmlFor="include-fixed-expenses-edit"
+                className="text-sm font-semibold text-foreground"
+              >
+                Include
+              </Label>
+            </div>
+          </div>
+
+          {!period.includeFixedExpenses ? (
+            <p className="text-sm text-muted-foreground">
+              Fixed expenses are not included in this period.
+            </p>
+          ) : fixedExpenses.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No fixed expenses yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {fixedExpenses.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {item.name}
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">
+                    £{item.amount.toFixed(2)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </main>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PeriodSelector } from "@/components/period-selector";
+import { FixedExpensesCard } from "@/components/fixed-expenses-card";
 import { PeriodCard } from "@/components/period-card";
 import { SpendingChart } from "@/components/spending-chart";
 import { SummaryStats } from "@/components/summary-stats";
@@ -28,8 +29,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { Period, SharedBudget } from "@/lib/types";
-import { Plus, Wallet } from "lucide-react";
+import type { FixedExpense, Period, SharedBudget } from "@/lib/types";
+import { Plus, Share2, Trash2, Wallet } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
@@ -44,6 +45,7 @@ import {
   where,
 } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { collectionName, shouldUseTestPrefix } from "@/lib/firestore-paths";
 
 export default function SharedPage() {
   const router = useRouter();
@@ -149,7 +151,7 @@ export default function SharedPage() {
     const merged = [...missing, ...loadedPeriods];
     try {
       await setDoc(
-        doc(db, "shared_budgets", budgetId),
+        doc(db, collectionName("shared_budgets"), budgetId),
         {
           periods: merged,
           updatedAt: serverTimestamp(),
@@ -197,7 +199,7 @@ export default function SharedPage() {
   useEffect(() => {
     if (!user) return;
     const q = query(
-      collection(db, "shared_budgets"),
+      collection(db, collectionName("shared_budgets")),
       where("memberUids", "array-contains", user.uid),
     );
     const unsub = onSnapshot(
@@ -241,6 +243,22 @@ export default function SharedPage() {
     () => sharedBudgets.find((budget) => budget.id === activeSharedId) || null,
     [sharedBudgets, activeSharedId],
   );
+
+  useEffect(() => {
+    if (!activeSharedBudget) {
+      setInviteCode(null);
+      return;
+    }
+    setInviteCode(activeSharedBudget.inviteCode || null);
+  }, [activeSharedBudget]);
+
+  const activeFixedTotal = useMemo(() => {
+    if (!activeSharedBudget?.fixedExpenses) return 0;
+    return activeSharedBudget.fixedExpenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0,
+    );
+  }, [activeSharedBudget]);
 
   const membersForView = useMemo(() => {
     if (!activeSharedBudget) return [];
@@ -287,7 +305,7 @@ export default function SharedPage() {
         return;
       }
       await setDoc(
-        doc(db, "shared_budgets", budgetId),
+        doc(db, collectionName("shared_budgets"), budgetId),
         {
           periods: nextPeriods,
           updatedAt: serverTimestamp(),
@@ -322,10 +340,46 @@ export default function SharedPage() {
     }
   };
 
+  const saveSharedFixedExpenses = async (
+    budgetId: string,
+    nextExpenses: FixedExpense[],
+  ) => {
+    if (!user) return;
+    setSharedBudgets((prev) =>
+      prev.map((budget) =>
+        budget.id === budgetId ? { ...budget, fixedExpenses: nextExpenses } : budget,
+      ),
+    );
+    try {
+      if (!navigator.onLine) return;
+      await setDoc(
+        doc(db, collectionName("shared_budgets"), budgetId),
+        { fixedExpenses: nextExpenses, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+    } catch (e) {
+      console.error("Failed to save fixed expenses", e);
+    }
+  };
+
+  const handleAddFixedExpense = (expense: FixedExpense) => {
+    if (!activeSharedBudget) return;
+    const next = [expense, ...(activeSharedBudget.fixedExpenses || [])];
+    saveSharedFixedExpenses(activeSharedBudget.id, next);
+  };
+
+  const handleDeleteFixedExpense = (id: string) => {
+    if (!activeSharedBudget) return;
+    const next = (activeSharedBudget.fixedExpenses || []).filter(
+      (expense) => expense.id !== id,
+    );
+    saveSharedFixedExpenses(activeSharedBudget.id, next);
+  };
+
   const handleCreateSharedBudget = async () => {
     if (!user || !newSharedName.trim()) return;
     setCreateSharedError(null);
-    const ref = doc(collection(db, "shared_budgets"));
+    const ref = doc(collection(db, collectionName("shared_budgets")));
     const payload: SharedBudget = {
       id: ref.id,
       name: newSharedName.trim(),
@@ -340,6 +394,7 @@ export default function SharedPage() {
         },
       ],
       periods: [],
+      fixedExpenses: [],
     };
     try {
       await setDoc(ref, {
@@ -365,22 +420,42 @@ export default function SharedPage() {
 
   const handleCreateInvite = async () => {
     if (!user || !activeSharedBudget || !canShare) return;
+    if (activeSharedBudget.inviteCode) {
+      setInviteCode(activeSharedBudget.inviteCode);
+      setShareError(null);
+      setShareCopyError(null);
+      setShareCopied(false);
+      return;
+    }
     const code = generateInviteCode();
     setShareError(null);
     setShareCopyError(null);
     setShareCopied(false);
     setIsSharing(true);
     try {
+      const isLocal = shouldUseTestPrefix();
       await setDoc(
-        doc(db, "shared_budget_invites", code),
+        doc(db, collectionName("shared_budget_invites"), code),
         {
           budgetId: activeSharedBudget.id,
           ownerUid: user.uid,
           createdAt: serverTimestamp(),
-          status: "active",
+          status: isLocal ? "test" : "active",
           usedBy: [],
         },
         { merge: true },
+      );
+      await setDoc(
+        doc(db, collectionName("shared_budgets"), activeSharedBudget.id),
+        { inviteCode: code, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+      setSharedBudgets((prev) =>
+        prev.map((budget) =>
+          budget.id === activeSharedBudget.id
+            ? { ...budget, inviteCode: code }
+            : budget,
+        ),
       );
       setInviteCode(code);
     } catch (e) {
@@ -409,7 +484,9 @@ export default function SharedPage() {
     setDeleteError(null);
     setIsDeleting(true);
     try {
-      await deleteDoc(doc(db, "shared_budgets", activeSharedBudget.id));
+      await deleteDoc(
+        doc(db, collectionName("shared_budgets"), activeSharedBudget.id),
+      );
       setSharedBudgets((prev) =>
         prev.filter((budget) => budget.id !== activeSharedBudget.id),
       );
@@ -571,8 +648,33 @@ export default function SharedPage() {
               <div className="flex flex-wrap gap-2">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm" disabled={!canShare}>
-                      Share link
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="whitespace-nowrap"
+                    >
+                      Fixed £{activeFixedTotal.toFixed(2)}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Fixed expenses</DialogTitle>
+                    </DialogHeader>
+                    <FixedExpensesCard
+                      items={activeSharedBudget.fixedExpenses || []}
+                      onAdd={handleAddFixedExpense}
+                      onDelete={handleDeleteFixedExpense}
+                    />
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm" disabled={!canShare} aria-label="Share link">
+                      <Share2 className="h-4 w-4 [@media(min-width:744px)]:hidden" />
+                      <span className="hidden [@media(min-width:744px)]:inline">
+                        Share link
+                      </span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
@@ -649,8 +751,12 @@ export default function SharedPage() {
                       size="sm"
                       variant="destructive"
                       disabled={!canShare || isDeleting}
+                      aria-label="Delete budget"
                     >
-                      Delete budget
+                      <Trash2 className="h-4 w-4 [@media(min-width:744px)]:hidden" />
+                      <span className="hidden [@media(min-width:744px)]:inline">
+                        Delete budget
+                      </span>
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -773,10 +879,16 @@ export default function SharedPage() {
             ) : (
               <>
                 <div className="mb-4 sm:mb-5">
-                  <SummaryStats periods={periodsForView} />
+                  <SummaryStats
+                    periods={periodsForView}
+                    fixedExpenses={activeSharedBudget.fixedExpenses || []}
+                  />
                 </div>
                 <div className="mb-4 sm:mb-5">
-                  <SpendingChart periods={periodsForView} />
+                  <SpendingChart
+                    periods={periodsForView}
+                    fixedExpenses={activeSharedBudget.fixedExpenses || []}
+                  />
                 </div>
                 <div className="space-y-4 sm:space-y-5">
                   <div>
@@ -784,28 +896,35 @@ export default function SharedPage() {
                       <h2 className="text-base font-semibold text-foreground sm:text-lg">
                         Periods ({periodsForView.length})
                       </h2>
-                      <Dialog
-                        open={isCreateSharedPeriodOpen}
-                        onOpenChange={setIsCreateSharedPeriodOpen}
-                      >
-                        <DialogTrigger asChild>
-                          <Button size="sm">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add period
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Add a new period</DialogTitle>
-                          </DialogHeader>
-                          <PeriodSelector
-                            onCreatePeriod={handleCreatePeriod}
-                            onCreated={() => setIsCreateSharedPeriodOpen(false)}
-                            variant="plain"
-                            showTitle={false}
-                          />
-                        </DialogContent>
-                      </Dialog>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Dialog
+                          open={isCreateSharedPeriodOpen}
+                          onOpenChange={setIsCreateSharedPeriodOpen}
+                        >
+                          <DialogTrigger asChild>
+                            <Button size="sm">
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add period
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Add a new period</DialogTitle>
+                            </DialogHeader>
+                            <PeriodSelector
+                              onCreatePeriod={handleCreatePeriod}
+                              onCreated={() =>
+                                setIsCreateSharedPeriodOpen(false)
+                              }
+                              variant="plain"
+                              showTitle={false}
+                              fixedExpenses={
+                                activeSharedBudget.fixedExpenses || []
+                              }
+                            />
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                     {sharedSaveError && (
                       <p className="text-xs text-destructive">
@@ -828,6 +947,7 @@ export default function SharedPage() {
                             key={period.id}
                             period={period}
                             onDelete={handleDeletePeriod}
+                            fixedExpenses={activeSharedBudget.fixedExpenses || []}
                             editHref={`/shared/${activeSharedBudget.id}/periods/${period.id}`}
                           />
                         ))}

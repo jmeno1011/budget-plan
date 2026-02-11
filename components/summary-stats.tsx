@@ -6,22 +6,30 @@ import {
   Calendar,
   PoundSterling,
 } from "lucide-react";
-import type { Period } from "@/lib/types";
+import type { FixedExpense, Period } from "@/lib/types";
 
 interface SummaryStatsProps {
   periods: Period[];
+  fixedExpenses?: FixedExpense[];
 }
 
-export function SummaryStats({ periods }: SummaryStatsProps) {
+export function SummaryStats({ periods, fixedExpenses = [] }: SummaryStatsProps) {
+  const fixedTotal = fixedExpenses.reduce(
+    (sum, item) => sum + item.amount,
+    0,
+  );
+  const periodTotal = (period: Period) =>
+    period.expenses.reduce((s, exp) => s + exp.amount, 0) +
+    (period.includeFixedExpenses ? fixedTotal : 0);
+
   const totalSpending = periods.reduce(
-    (sum, period) =>
-      sum + period.expenses.reduce((s, exp) => s + exp.amount, 0),
+    (sum, period) => sum + periodTotal(period),
     0,
   );
 
   const periodTotals = periods.map((period) => ({
     name: period.name,
-    total: period.expenses.reduce((s, exp) => s + exp.amount, 0),
+    total: periodTotal(period),
   }));
 
   const averagePerPeriod =

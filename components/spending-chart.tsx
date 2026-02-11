@@ -7,25 +7,37 @@ import {
   YAxis,
   CartesianGrid,
   Cell,
+  LabelList,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import type { Period } from "@/lib/types";
+import type { FixedExpense, Period } from "@/lib/types";
 
 interface SpendingChartProps {
   periods: Period[];
+  fixedExpenses?: FixedExpense[];
 }
 
-export function SpendingChart({ periods }: SpendingChartProps) {
+export function SpendingChart({
+  periods,
+  fixedExpenses = [],
+}: SpendingChartProps) {
   // Sort by start date (oldest first) to match the visual order on the right side
   const sortedPeriods = [...periods].sort(
     (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
   );
 
+  const fixedTotal = fixedExpenses.reduce(
+    (sum, item) => sum + item.amount,
+    0,
+  );
+
   const chartData = sortedPeriods.map((period) => ({
     name: period.name.length > 6 ? period.name.slice(0, 6) + ".." : period.name,
     fullName: period.name,
-    total: period.expenses.reduce((sum, exp) => sum + exp.amount, 0),
+    total:
+      period.expenses.reduce((sum, exp) => sum + exp.amount, 0) +
+      (period.includeFixedExpenses ? fixedTotal : 0),
     startDate: period.startDate,
   }));
 
@@ -72,17 +84,17 @@ export function SpendingChart({ periods }: SpendingChartProps) {
             <XAxis
               dataKey="name"
               stroke="#6b7280"
-              tick={{ fill: "#6b7280", fontSize: 9 }}
+              tick={{ fill: "#6b7280", fontSize: 14 }}
               tickLine={false}
               axisLine={{ stroke: "#d1d5db" }}
-              angle={-35}
-              textAnchor="end"
+              angle={0}
+              textAnchor="middle"
               interval={0}
               height={26}
             />
             <YAxis
               stroke="#6b7280"
-              tick={{ fill: "#6b7280", fontSize: 9 }}
+              tick={{ fill: "#6b7280", fontSize: 14 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(value) =>
@@ -114,6 +126,28 @@ export function SpendingChart({ periods }: SpendingChartProps) {
               {chartData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={primaryColor} />
               ))}
+              <LabelList
+                dataKey="total"
+                content={({ x, y, width, height, value }) => {
+                  if (value === undefined || value === null) return null;
+                  const numeric = Number(value);
+                  if (!Number.isFinite(numeric) || numeric === 0) return null;
+                  const xPos = (x ?? 0) + (width ?? 0) / 2;
+                  const yPos = numeric >= 0 ? (y ?? 0) - 6 : (y ?? 0) + (height ?? 0) + 12;
+                  return (
+                    <text
+                      x={xPos}
+                      y={yPos}
+                      textAnchor="middle"
+                      fill="#374151"
+                      fontSize={14}
+                      fontWeight={600}
+                    >
+                      {formatMoney(numeric)}
+                    </text>
+                  );
+                }}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

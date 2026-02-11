@@ -13,13 +13,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { Period } from "@/lib/types";
+import type { FixedExpense, Period } from "@/lib/types";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface PeriodSelectorProps {
   onCreatePeriod: (period: Period) => void;
   onCreated?: () => void;
   variant?: "card" | "plain";
   showTitle?: boolean;
+  fixedExpenses?: FixedExpense[];
 }
 
 export function PeriodSelector({
@@ -27,6 +29,7 @@ export function PeriodSelector({
   onCreated,
   variant = "card",
   showTitle = true,
+  fixedExpenses = [],
 }: PeriodSelectorProps) {
   const [periodName, setPeriodName] = useState("");
   const [startDate, setStartDate] = useState<Date>();
@@ -34,6 +37,12 @@ export function PeriodSelector({
   const [budget, setBudget] = useState("");
   const [isStartOpen, setIsStartOpen] = useState(false);
   const [isEndOpen, setIsEndOpen] = useState(false);
+  const [includeFixedExpenses, setIncludeFixedExpenses] = useState(false);
+
+  const fixedTotal = fixedExpenses.reduce(
+    (sum, item) => sum + item.amount,
+    0,
+  );
 
   const handleStartOpenChange = (open: boolean) => {
     setIsStartOpen(open);
@@ -76,6 +85,11 @@ export function PeriodSelector({
       parsedBudget !== undefined && Number.isFinite(parsedBudget)
         ? parsedBudget
         : undefined;
+    const finalBudgetBase = budgetValue ?? 0;
+    const finalBudget =
+      includeFixedExpenses || budgetValue !== undefined
+        ? finalBudgetBase + (includeFixedExpenses ? fixedTotal : 0)
+        : undefined;
 
     const newPeriod: Period = {
       id: crypto.randomUUID(),
@@ -83,9 +97,10 @@ export function PeriodSelector({
       startDate: format(startDate, "yyyy-MM-dd"),
       endDate: format(endDate, "yyyy-MM-dd"),
       expenses,
+      includeFixedExpenses,
     };
-    if (budgetValue !== undefined) {
-      newPeriod.budget = budgetValue;
+    if (finalBudget !== undefined) {
+      newPeriod.budget = finalBudget;
     }
 
     onCreatePeriod(newPeriod);
@@ -94,6 +109,7 @@ export function PeriodSelector({
     setStartDate(undefined);
     setEndDate(undefined);
     setBudget("");
+    setIncludeFixedExpenses(false);
   };
 
   return (
@@ -207,6 +223,29 @@ export function PeriodSelector({
           className="bg-background border-border text-foreground placeholder:text-muted-foreground"
         />
       </div>
+
+      {fixedExpenses.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={includeFixedExpenses}
+              onCheckedChange={(value) =>
+                setIncludeFixedExpenses(value === true)
+              }
+              id="include-fixed-expenses"
+            />
+            <Label
+              htmlFor="include-fixed-expenses"
+              className="text-sm text-muted-foreground"
+            >
+              Include fixed expenses
+            </Label>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            + £{fixedTotal.toFixed(2)}
+          </span>
+        </div>
+      )}
 
       <Button
         onClick={handleCreate}
