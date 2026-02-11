@@ -1,4 +1,4 @@
-import type { FixedExpense, Period } from "@/lib/types"
+import type { FixedExpense, Period, SharedBudget } from "@/lib/types"
 
 export const e2eFixedExpenses: FixedExpense[] = [
   {
@@ -47,5 +47,54 @@ export const e2ePeriods: Period[] = [
         category: "utilities",
       },
     ],
+  },
+]
+
+export const e2eSharedBudgets: SharedBudget[] = [
+  {
+    id: "sb-1",
+    name: "Shared Alpha",
+    description: "Local shared budget",
+    ownerUid: "e2e-user",
+    memberUids: ["e2e-user", "member-1"],
+    members: [
+      { uid: "e2e-user", name: "E2E User" },
+      { uid: "member-1", name: "Alex" },
+    ],
+    inviteCode: "INVITE123",
+    fixedExpenses: [
+      { id: "sfx-1", name: "Netflix", amount: 5 },
+    ],
+    periods: [
+      {
+        id: "sp-1",
+        name: "Shared Alpha",
+        startDate: "2026-02-01",
+        endDate: "2026-02-02",
+        includeFixedExpenses: true,
+        expenses: [
+          { id: "se-1", date: "2026-02-01", amount: 10 },
+          { id: "se-2", date: "2026-02-02", amount: 5 },
+        ],
+      },
+      {
+        id: "sp-2",
+        name: "Shared Beta",
+        startDate: "2026-03-01",
+        endDate: "2026-03-01",
+        includeFixedExpenses: false,
+        expenses: [{ id: "se-3", date: "2026-03-01", amount: 8 }],
+      },
+    ],
+  },
+  {
+    id: "sb-2",
+    name: "Shared Empty",
+    description: "No periods yet",
+    ownerUid: "e2e-user",
+    memberUids: ["e2e-user"],
+    members: [{ uid: "e2e-user", name: "E2E User" }],
+    periods: [],
+    fixedExpenses: [],
   },
 ]

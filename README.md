@@ -7,6 +7,7 @@ Budget Plan is a personal and shared household budget tracker. Log spending by p
 - Separate personal and shared budgets
 - Create periods with start/end dates and auto‑generated daily entries
 - Add spending, including refunds (negative amounts)
+- Fixed expenses with optional inclusion per period
 - Period summaries and charts
 - Shared budgets with join links
 - Offline period creation with automatic sync
@@ -83,6 +84,46 @@ Note: currently only **new period creation** is synced. Offline edits/deletes ar
 - E2E tests: `npm run test:e2e`
 
 ---
+
+## Testing
+
+**Unit tests (Jest)**
+
+- Home landing page (`__tests__/home-page.test.tsx`)
+- Login page (`__tests__/login-page.test.tsx`)
+- Personal dashboard (`__tests__/personal-page.test.tsx`)
+- Period edit page (`__tests__/period-edit.test.tsx`)
+- Shared budgets page (`__tests__/shared-page.test.tsx`)
+- Summary stats (`__tests__/summary-stats.test.tsx`)
+- Spending chart empty state (`__tests__/spending-chart.test.tsx`)
+- Fixed expenses UI and inclusion are covered in `__tests__/personal-page.test.tsx` and `__tests__/period-edit.test.tsx`
+
+Run:
+```bash
+npm run test
+```
+
+**E2E tests (Cypress)**
+
+- Home landing (`cypress/e2e/home.cy.ts`)
+- Login page (`cypress/e2e/login.cy.ts`)
+- Personal dashboard (`cypress/e2e/personal.cy.ts`)
+- Period edit (`cypress/e2e/period-edit.cy.ts`)
+- Shared budgets (`cypress/e2e/shared.cy.ts`)
+  - Includes fixed expenses modal, inclusion toggle, and totals
+
+Run:
+```bash
+# Terminal 1
+NEXT_PUBLIC_E2E_TEST_MODE=true npm run dev
+
+# Terminal 2
+CYPRESS_personalMode=true npm run test:e2e
+```
+
+Notes:
+- `NEXT_PUBLIC_E2E_TEST_MODE=true` enables fixture data and bypasses auth for E2E.
+- `CYPRESS_personalMode=true` enables personal/shared E2E specs.
 
 ## Structure
 

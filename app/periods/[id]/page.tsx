@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import type { FixedExpense, Period, Expense } from "@/lib/types"
 import { auth, db } from "@/lib/firebase"
 import { collectionName } from "@/lib/firestore-paths"
+import { e2eFixedExpenses, e2ePeriods } from "@/lib/e2e-fixtures"
 import { onAuthStateChanged, type User } from "firebase/auth"
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore"
 
@@ -31,8 +32,18 @@ export default function PeriodEditPage() {
   const [user, setUser] = useState<User | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const dirtyRef = useRef(false)
+  const isE2ETest = process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true"
 
   useEffect(() => {
+    if (isE2ETest) {
+      setUser({
+        uid: "e2e-user",
+        displayName: "E2E User",
+        email: "e2e@example.com",
+      } as User)
+      setAuthReady(true)
+      return
+    }
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser)
       setAuthReady(true)
@@ -41,9 +52,19 @@ export default function PeriodEditPage() {
       }
     })
     return () => unsub()
-  }, [router])
+  }, [router, isE2ETest])
 
   useEffect(() => {
+    if (isE2ETest) {
+      setPeriods(e2ePeriods)
+      setFixedExpenses(e2eFixedExpenses)
+      const found = e2ePeriods.find((p) => p.id === periodId) || null
+      if (!dirtyRef.current) {
+        setPeriod(found)
+      }
+      setIsLoaded(true)
+      return
+    }
     if (!authReady || !user || !periodId) {
       if (authReady && !user) {
         setIsLoaded(true)
@@ -103,7 +124,7 @@ export default function PeriodEditPage() {
     return () => {
       if (unsub) unsub()
     }
-  }, [authReady, user, periodId])
+  }, [authReady, user, periodId, isE2ETest])
 
   const handleExpenseUpdate = (updatedExpense: Expense) => {
     dirtyRef.current = true
@@ -139,6 +160,11 @@ export default function PeriodEditPage() {
 
   const handleSave = () => {
     if (!period || !user) return
+    if (isE2ETest) {
+      dirtyRef.current = false
+      router.push("/")
+      return
+    }
     const hasExisting = periods.some((p) => p.id === period.id)
     const updated = hasExisting
       ? periods.map((p) => (p.id === period.id ? period : p))

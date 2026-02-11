@@ -46,6 +46,7 @@ import {
 } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { collectionName, shouldUseTestPrefix } from "@/lib/firestore-paths";
+import { e2eSharedBudgets } from "@/lib/e2e-fixtures";
 
 export default function SharedPage() {
   const router = useRouter();
@@ -72,6 +73,7 @@ export default function SharedPage() {
   const [origin, setOrigin] = useState("");
   const [newSharedName, setNewSharedName] = useState("");
   const [newSharedDescription, setNewSharedDescription] = useState("");
+  const isE2ETest = process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true";
 
   const getPendingKey = (uid: string, budgetId: string) =>
     `budget-plan-pending-shared:${uid}:${budgetId}`;
@@ -183,6 +185,18 @@ export default function SharedPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (isE2ETest) {
+      const e2eUser = {
+        uid: "e2e-user",
+        displayName: "E2E User",
+        email: "e2e@example.com",
+      } as User;
+      setUser(e2eUser);
+      setSharedBudgets(e2eSharedBudgets);
+      setActiveSharedId(e2eSharedBudgets[0]?.id ?? null);
+      setIsLoaded(true);
+      return;
+    }
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
@@ -194,10 +208,10 @@ export default function SharedPage() {
       setIsLoaded(false);
     });
     return () => unsub();
-  }, []);
+  }, [isE2ETest]);
 
   useEffect(() => {
-    if (!user) return;
+    if (isE2ETest || !user) return;
     const q = query(
       collection(db, collectionName("shared_budgets")),
       where("memberUids", "array-contains", user.uid),
@@ -224,7 +238,7 @@ export default function SharedPage() {
       },
     );
     return () => unsub();
-  }, [user]);
+  }, [user, isE2ETest]);
 
   useEffect(() => {
     if (sharedBudgets.length === 0) {
