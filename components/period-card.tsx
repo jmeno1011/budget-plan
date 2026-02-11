@@ -146,6 +146,7 @@ export function PeriodCard({
                 variant="ghost"
                 size="icon"
                 onClick={(e) => e.stopPropagation()}
+                aria-label="Delete period"
                 className="h-8 w-8 text-muted-foreground hover:text-destructive sm:h-9 sm:w-9"
               >
                 <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />

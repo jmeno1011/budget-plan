@@ -24,6 +24,7 @@ import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import { collectionName } from "@/lib/firestore-paths";
+import { e2eFixedExpenses, e2ePeriods } from "@/lib/e2e-fixtures";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -34,6 +35,7 @@ export default function Home() {
   >([]);
   const [isCreatePersonalOpen, setIsCreatePersonalOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const isE2ETest = process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true";
   const personalFixedTotal = useMemo(
     () =>
       personalFixedExpenses.reduce((sum, expense) => sum + expense.amount, 0),
@@ -132,6 +134,17 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (isE2ETest) {
+      setUser({
+        uid: "e2e-user",
+        displayName: "E2E User",
+        email: "e2e@example.com",
+      } as User);
+      setPersonalPeriods(e2ePeriods);
+      setPersonalFixedExpenses(e2eFixedExpenses);
+      setIsLoaded(true);
+      return;
+    }
     const unsub = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
@@ -142,10 +155,10 @@ export default function Home() {
       setIsLoaded(false);
     });
     return () => unsub();
-  }, []);
+  }, [isE2ETest]);
 
   useEffect(() => {
-    if (!user) return;
+    if (isE2ETest || !user) return;
     const pendingKey = getPendingKey(user.uid);
     const legacyKey = getLegacyPendingKey(user.uid);
     const pending = migratePendingPeriods(pendingKey, legacyKey);
