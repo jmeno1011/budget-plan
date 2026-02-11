@@ -19,7 +19,13 @@ export const metadata: Metadata = {
         type: "image/jpeg",
       },
     ],
-    apple: "/apple-icon.png",
+    apple: [
+      {
+        url: "/apple-icon.png",
+        type: "image/png",
+        sizes: "180x180",
+      },
+    ],
   },
 };
 
