@@ -84,7 +84,10 @@ export function PeriodCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <div
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      data-testid="period-card"
+    >
       <div
         className="flex cursor-pointer items-center justify-between p-2.5 hover:bg-secondary/50 transition-colors sm:p-4"
         onClick={() => setIsExpanded(!isExpanded)}

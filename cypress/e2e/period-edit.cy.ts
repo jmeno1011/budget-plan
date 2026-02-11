@@ -39,7 +39,10 @@ describePersonal('Period edit page', () => {
   it('shows inputs for each date', () => {
     // 6. 각 날짜마다 amount, category, notes 입력 확인
     cy.get('input[placeholder="0.00"]').should('have.length', 2)
-    cy.contains('No category').should('exist')
+    cy.get('[data-slot="select-trigger"]').should('have.length', 2)
+    cy.get('[data-slot="select-trigger"]').first().click()
+    cy.contains('No category').should('be.visible')
+    cy.get('body').type('{esc}')
     cy.get('input[placeholder="Notes (optional)"]').should('have.length', 2)
   })
 

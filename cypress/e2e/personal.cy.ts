@@ -52,7 +52,7 @@ describePersonal('Personal page', () => {
 
   it('toggles a period card to show entries', () => {
     // 18. Period 카드 클릭 시 Spending entries 표시
-    cy.contains('Alpha period').click()
+    cy.get('[data-testid="period-card"]').first().click()
     cy.contains('Spending entries').should('be.visible')
   })
 

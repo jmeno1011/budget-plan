@@ -75,7 +75,7 @@ describeShared('Shared page', () => {
 
   it('toggles a period card to show entries', () => {
     // 23. Period 카드 클릭 시 Spending entries 표시
-    cy.contains('Shared Alpha').click()
+    cy.get('[data-testid="period-card"]').first().click()
     cy.contains('Spending entries').should('be.visible')
   })
 
