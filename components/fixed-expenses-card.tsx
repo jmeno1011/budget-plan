@@ -107,7 +107,7 @@ export function FixedExpensesCard({
             <p className="mt-1 text-xs text-destructive">{amountError}</p>
           )}
         </div>
-        <Button onClick={handleAdd} size="sm">
+        <Button onClick={handleAdd} size="sm" data-testid="fixed-expenses-add">
           <Plus className="h-4 w-4" />
           Add
         </Button>
@@ -123,6 +123,7 @@ export function FixedExpensesCard({
             <div
               key={item.id}
               className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2"
+              data-testid={`fixed-expense-item-${item.id}`}
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">
@@ -134,7 +135,7 @@ export function FixedExpensesCard({
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" aria-label="Delete fixed expense">
                     <Trash2 className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </AlertDialogTrigger>
