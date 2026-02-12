@@ -730,28 +730,31 @@ export default function SharedPage() {
                           Create a link and send it to your friend.
                         </p>
                         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCreateInvite}
-                            disabled={!canShare}
-                          >
-                            Create link
-                          </Button>
-                          <Input
-                            readOnly
-                            value={inviteLink}
-                            placeholder="Link will appear here"
-                            className="h-9 bg-background"
-                          />
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={handleCopyInvite}
-                            disabled={!inviteLink}
-                          >
-                            {shareCopied ? "Copied" : "Copy"}
-                          </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCreateInvite}
+                    disabled={!canShare}
+                    data-testid="share-create-link"
+                  >
+                    Create link
+                  </Button>
+                  <Input
+                    readOnly
+                    value={inviteLink}
+                    placeholder="Link will appear here"
+                    className="h-9 bg-background"
+                    data-testid="share-link-input"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleCopyInvite}
+                    disabled={!inviteLink}
+                    data-testid="share-copy-link"
+                  >
+                    {shareCopied ? "Copied" : "Copy"}
+                  </Button>
                         </div>
                       </div>
                       {shareError && (
