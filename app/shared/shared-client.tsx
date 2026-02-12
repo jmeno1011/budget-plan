@@ -391,12 +391,11 @@ export default function SharedPage() {
   };
 
   const handleCreateSharedBudget = async () => {
-    if (!user || !newSharedName.trim()) return;
+    const trimmedName = newSharedName.trim();
+    if (!user || !trimmedName) return;
     setCreateSharedError(null);
-    const ref = doc(collection(db, collectionName("shared_budgets")));
-    const payload: SharedBudget = {
-      id: ref.id,
-      name: newSharedName.trim(),
+    const basePayload = {
+      name: trimmedName,
       description: newSharedDescription.trim() || "",
       ownerUid: user.uid,
       memberUids: [user.uid],
@@ -409,6 +408,25 @@ export default function SharedPage() {
       ],
       periods: [],
       fixedExpenses: [],
+    };
+    if (isE2ETest) {
+      const id = `sb-${crypto.randomUUID()}`;
+      const payload: SharedBudget = {
+        id,
+        ...basePayload,
+      };
+      setSharedBudgets((prev) => [payload, ...prev]);
+      setNewSharedName("");
+      setNewSharedDescription("");
+      setIsCreateSharedOpen(false);
+      setActiveSharedId(id);
+      router.replace(`/shared?budgetId=${id}`);
+      return;
+    }
+    const ref = doc(collection(db, collectionName("shared_budgets")));
+    const payload: SharedBudget = {
+      id: ref.id,
+      ...basePayload,
     };
     try {
       await setDoc(ref, {
@@ -630,6 +648,7 @@ export default function SharedPage() {
                 <div className="space-y-3">
                   <div className="space-y-2">
                     <Input
+                      data-testid="shared-budget-name"
                       placeholder="Budget name"
                       value={newSharedName}
                       onChange={(e) => setNewSharedName(e.target.value)}
@@ -637,6 +656,7 @@ export default function SharedPage() {
                   </div>
                   <div className="space-y-2">
                     <Textarea
+                      data-testid="shared-budget-description"
                       placeholder="Description (optional)"
                       value={newSharedDescription}
                       onChange={(e) => setNewSharedDescription(e.target.value)}
@@ -646,6 +666,7 @@ export default function SharedPage() {
                     onClick={handleCreateSharedBudget}
                     disabled={!newSharedName.trim()}
                     className="w-full"
+                    data-testid="shared-budget-create"
                   >
                     Create
                   </Button>
