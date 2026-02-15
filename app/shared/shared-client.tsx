@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { FixedExpense, Period, SharedBudget } from "@/lib/types";
-import { Plus, Share2, Trash2, Wallet } from "lucide-react";
+import { Pencil, Plus, Share2, Trash2, Wallet } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
@@ -58,9 +58,11 @@ export default function SharedPage() {
   const [isCreateSharedPeriodOpen, setIsCreateSharedPeriodOpen] =
     useState(false);
   const [isCreateSharedOpen, setIsCreateSharedOpen] = useState(false);
+  const [isEditSharedOpen, setIsEditSharedOpen] = useState(false);
   const [createSharedError, setCreateSharedError] = useState<string | null>(
     null,
   );
+  const [editSharedError, setEditSharedError] = useState<string | null>(null);
   const [sharedSaveError, setSharedSaveError] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -74,6 +76,9 @@ export default function SharedPage() {
   const [origin, setOrigin] = useState("");
   const [newSharedName, setNewSharedName] = useState("");
   const [newSharedDescription, setNewSharedDescription] = useState("");
+  const [editSharedName, setEditSharedName] = useState("");
+  const [editSharedDescription, setEditSharedDescription] = useState("");
+  const [isSavingShared, setIsSavingShared] = useState(false);
   const isE2ETest = process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true";
 
   const getPendingKey = (uid: string, budgetId: string) =>
@@ -267,6 +272,18 @@ export default function SharedPage() {
     setInviteCode(activeSharedBudget.inviteCode || null);
   }, [activeSharedBudget]);
 
+  useEffect(() => {
+    if (!activeSharedBudget) {
+      setEditSharedName("");
+      setEditSharedDescription("");
+      setEditSharedError(null);
+      return;
+    }
+    setEditSharedName(activeSharedBudget.name || "");
+    setEditSharedDescription(activeSharedBudget.description || "");
+    setEditSharedError(null);
+  }, [activeSharedBudget]);
+
   const activeFixedTotal = useMemo(() => {
     if (!activeSharedBudget?.fixedExpenses) return 0;
     return activeSharedBudget.fixedExpenses.reduce(
@@ -445,6 +462,55 @@ export default function SharedPage() {
       const message =
         e instanceof Error ? e.message : "Unknown error occurred.";
       setCreateSharedError(message);
+    }
+  };
+
+  const handleUpdateSharedBudget = async () => {
+    if (!user || !activeSharedBudget || !canShare) return;
+    const trimmedName = editSharedName.trim();
+    if (!trimmedName) {
+      setEditSharedError("Please enter a name.");
+      return;
+    }
+    setEditSharedError(null);
+    setIsSavingShared(true);
+    const payload = {
+      name: trimmedName,
+      description: editSharedDescription.trim(),
+    };
+    if (isE2ETest) {
+      setSharedBudgets((prev) =>
+        prev.map((budget) =>
+          budget.id === activeSharedBudget.id
+            ? { ...budget, ...payload }
+            : budget,
+        ),
+      );
+      setIsEditSharedOpen(false);
+      setIsSavingShared(false);
+      return;
+    }
+    try {
+      await setDoc(
+        doc(db, collectionName("shared_budgets"), activeSharedBudget.id),
+        { ...payload, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+      setSharedBudgets((prev) =>
+        prev.map((budget) =>
+          budget.id === activeSharedBudget.id
+            ? { ...budget, ...payload }
+            : budget,
+        ),
+      );
+      setIsEditSharedOpen(false);
+    } catch (e) {
+      console.error("Failed to update shared budget", e);
+      const message =
+        e instanceof Error ? e.message : "Failed to update shared budget.";
+      setEditSharedError(message);
+    } finally {
+      setIsSavingShared(false);
     }
   };
 
@@ -716,6 +782,60 @@ export default function SharedPage() {
 
             {activeSharedBudget && (
               <div className="flex flex-wrap gap-2">
+                <Dialog open={isEditSharedOpen} onOpenChange={setIsEditSharedOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!canShare}
+                      aria-label="Edit shared budget"
+                    >
+                      <Pencil className="h-4 w-4 [@media(min-width:744px)]:hidden" />
+                      <span className="hidden [@media(min-width:744px)]:inline">
+                        Edit shared budget
+                      </span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Edit shared budget</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Input
+                          data-testid="shared-budget-edit-name"
+                          placeholder="Budget name"
+                          value={editSharedName}
+                          onChange={(e) => setEditSharedName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Textarea
+                          data-testid="shared-budget-edit-description"
+                          placeholder="Description (optional)"
+                          value={editSharedDescription}
+                          onChange={(e) =>
+                            setEditSharedDescription(e.target.value)
+                          }
+                        />
+                      </div>
+                      <Button
+                        onClick={handleUpdateSharedBudget}
+                        disabled={!editSharedName.trim() || isSavingShared}
+                        className="w-full"
+                        data-testid="shared-budget-edit-save"
+                      >
+                        {isSavingShared ? "Saving..." : "Save"}
+                      </Button>
+                      {editSharedError && (
+                        <p className="text-xs text-destructive">
+                          {editSharedError}
+                        </p>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button
