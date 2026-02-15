@@ -65,6 +65,7 @@ export default function SharedPage() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
   const [shareCopyError, setShareCopyError] = useState<string | null>(null);
+  const [shareNativeError, setShareNativeError] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -456,12 +457,14 @@ export default function SharedPage() {
       setInviteCode(activeSharedBudget.inviteCode);
       setShareError(null);
       setShareCopyError(null);
+      setShareNativeError(null);
       setShareCopied(false);
       return;
     }
     const code = generateInviteCode();
     setShareError(null);
     setShareCopyError(null);
+    setShareNativeError(null);
     setShareCopied(false);
     setIsSharing(true);
     try {
@@ -500,14 +503,43 @@ export default function SharedPage() {
   const inviteLink = inviteCode ? `${origin}/join?code=${inviteCode}` : "";
 
   const handleCopyInvite = async () => {
-    if (!inviteLink) return;
+    if (!inviteLink) {
+      setShareCopyError("Create a link first.");
+      setShareNativeError(null);
+      return;
+    }
     try {
       setShareCopyError(null);
+      setShareNativeError(null);
       await navigator.clipboard.writeText(inviteLink);
       setShareCopied(true);
       window.setTimeout(() => setShareCopied(false), 2000);
     } catch (e) {
       setShareCopyError("Failed to copy link.");
+    }
+  };
+
+  const handleShareInvite = async () => {
+    if (!inviteLink) {
+      setShareNativeError("Create a link first.");
+      return;
+    }
+    if (typeof navigator === "undefined" || !("share" in navigator)) {
+      setShareNativeError("Sharing is not supported on this device.");
+      return;
+    }
+    setShareNativeError(null);
+    try {
+      await navigator.share({
+        title: "Budget Plan",
+        text: activeSharedBudget
+          ? `Join my shared budget: ${activeSharedBudget.name}`
+          : "Join my shared budget",
+        url: inviteLink,
+      });
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return;
+      setShareNativeError("Failed to share. Please try again.");
     }
   };
 
@@ -637,8 +669,11 @@ export default function SharedPage() {
           <div className="flex flex-wrap gap-2">
             <Dialog open={isCreateSharedOpen} onOpenChange={setIsCreateSharedOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                  New shared budget
+                <Button size="sm" variant="outline" aria-label="New shared budget">
+                  <Plus className="h-4 w-4 [@media(min-width:744px)]:hidden" />
+                  <span className="hidden [@media(min-width:744px)]:inline">
+                    New shared budget
+                  </span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
@@ -755,6 +790,14 @@ export default function SharedPage() {
                   >
                     {shareCopied ? "Copied" : "Copy"}
                   </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleShareInvite}
+                    disabled={!inviteLink}
+                    data-testid="share-native"
+                  >
+                    Share
+                  </Button>
                         </div>
                       </div>
                       {shareError && (
@@ -763,6 +806,11 @@ export default function SharedPage() {
                       {shareCopyError && (
                         <p className="text-xs text-destructive">
                           {shareCopyError}
+                        </p>
+                      )}
+                      {shareNativeError && (
+                        <p className="text-xs text-destructive">
+                          {shareNativeError}
                         </p>
                       )}
                       {shareCopied && (
