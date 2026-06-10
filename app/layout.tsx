@@ -42,11 +42,22 @@ export default function RootLayout({
           <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
             <div className="flex flex-col items-center justify-between gap-3 text-center md:flex-row md:text-left">
               <p className="text-sm text-muted-foreground">
-                Budget Plan · Free to use · by Doh Kim
+                Budget Plan · © 2026 Doh Kim
               </p>
-              <p className="text-xs text-muted-foreground">
-                Questions? Please contact whltn8282@gmail.com
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Questions? Please contact whltn8282@gmail.com
+                </p>
+                ·
+                <a
+                  href={"https://www.linkedin.com/in/dohyoungkim1011"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-primary underline"
+                >
+                  LinkedIn
+                </a>
+              </div>
             </div>
           </div>
         </footer>
