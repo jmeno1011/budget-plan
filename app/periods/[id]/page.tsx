@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { format, parseISO } from "date-fns"
+import { eachDayOfInterval, format, parseISO } from "date-fns"
 import { enGB } from "date-fns/locale"
 import { ArrowLeft, Repeat, Wallet } from "lucide-react"
-import { ExpenseForm } from "@/components/expense-form"
+import { DateExpenseGroup } from "@/components/date-expense-group"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -142,6 +142,36 @@ export default function PeriodEditPage() {
     })
   }
 
+  const handleExpenseAdd = (date: string) => {
+    dirtyRef.current = true
+    setPeriod((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        expenses: [
+          ...prev.expenses,
+          {
+            id: crypto.randomUUID(),
+            date,
+            amount: 0,
+            memo: "",
+          },
+        ],
+      }
+    })
+  }
+
+  const handleExpenseDelete = (id: string) => {
+    dirtyRef.current = true
+    setPeriod((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        expenses: prev.expenses.filter((expense) => expense.id !== id),
+      }
+    })
+  }
+
   const handleBudgetChange = (value: string) => {
     dirtyRef.current = true
     setPeriod((prev) => {
@@ -211,6 +241,12 @@ export default function PeriodEditPage() {
     ? getFixedExpensesForPeriod(period, fixedExpenses)
     : fixedExpenses
   const totalSpent = period ? getTotalSpentForPeriod(period, fixedExpenses) : 0
+  const periodDates = period
+    ? eachDayOfInterval({
+        start: parseISO(period.startDate),
+        end: parseISO(period.endDate),
+      }).map((day) => format(day, "yyyy-MM-dd"))
+    : []
 
   if (!isLoaded) {
     return (
@@ -303,11 +339,16 @@ export default function PeriodEditPage() {
             />
           </div>
           <div className="space-y-2 sm:space-y-3">
-            {period.expenses.map((expense) => (
-              <ExpenseForm
-                key={expense.id}
-                expense={expense}
+            {periodDates.map((date) => (
+              <DateExpenseGroup
+                key={date}
+                date={date}
+                expenses={period.expenses.filter(
+                  (expense) => expense.date === date,
+                )}
+                onAdd={handleExpenseAdd}
                 onUpdate={handleExpenseUpdate}
+                onDelete={handleExpenseDelete}
               />
             ))}
           </div>

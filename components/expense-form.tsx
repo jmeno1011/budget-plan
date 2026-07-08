@@ -1,67 +1,84 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { format, parseISO } from "date-fns"
-import { enGB } from "date-fns/locale"
-import { Input } from "@/components/ui/input"
+import { useEffect, useState } from "react";
+import { format, parseISO } from "date-fns";
+import { enGB } from "date-fns/locale";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { CATEGORIES, type Expense, type CategoryValue } from "@/lib/types"
+} from "@/components/ui/select";
+import { CATEGORIES, type Expense, type CategoryValue } from "@/lib/types";
 
 interface ExpenseFormProps {
-  expense: Expense
-  onUpdate: (expense: Expense) => void
+  expense: Expense;
+  onUpdate: (expense: Expense) => void;
+  onDelete?: (id: string) => void;
+  showDate?: boolean;
 }
 
-export function ExpenseForm({ expense, onUpdate }: ExpenseFormProps) {
-  const formatAmountInput = (amount: number) => (amount === 0 ? "" : String(amount))
-  const [amountInput, setAmountInput] = useState(formatAmountInput(expense.amount))
+export function ExpenseForm({
+  expense,
+  onUpdate,
+  onDelete,
+  showDate = true,
+}: ExpenseFormProps) {
+  const formatAmountInput = (amount: number) =>
+    amount === 0 ? "" : String(amount);
+  const [amountInput, setAmountInput] = useState(
+    formatAmountInput(expense.amount),
+  );
 
   useEffect(() => {
-    setAmountInput(formatAmountInput(expense.amount))
-  }, [expense.amount])
+    setAmountInput(formatAmountInput(expense.amount));
+  }, [expense.amount]);
 
   const handleAmountChange = (value: string) => {
-    setAmountInput(value)
+    setAmountInput(value);
     if (value === "") {
-      onUpdate({ ...expense, amount: 0 })
-      return
+      onUpdate({ ...expense, amount: 0 });
+      return;
     }
-    if (value === "-" || value === "." || value === "-.") return
-    const amount = Number(value)
-    if (Number.isNaN(amount)) return
-    onUpdate({ ...expense, amount })
-  }
+    if (value === "-" || value === "." || value === "-.") return;
+    const amount = Number(value);
+    if (Number.isNaN(amount)) return;
+    onUpdate({ ...expense, amount });
+  };
 
   const handleAmountBlur = () => {
     if (amountInput === "-" || amountInput === "." || amountInput === "-.") {
-      setAmountInput(formatAmountInput(expense.amount))
+      setAmountInput(formatAmountInput(expense.amount));
     }
-  }
+  };
 
   const handleMemoChange = (value: string) => {
-    onUpdate({ ...expense, memo: value })
-  }
+    onUpdate({ ...expense, memo: value });
+  };
 
   const handleCategoryChange = (value: string) => {
-    onUpdate({ ...expense, category: value === "none" ? undefined : value as CategoryValue })
-  }
+    onUpdate({
+      ...expense,
+      category: value === "none" ? undefined : (value as CategoryValue),
+    });
+  };
 
   const formattedDate = format(parseISO(expense.date), "d MMM (EEE)", {
     locale: enGB,
-  })
+  });
 
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-2 sm:p-3">
-      <div className="mb-1.5 text-xs font-medium text-primary sm:mb-2 sm:text-sm">
-        {formattedDate}
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      {showDate && (
+        <div className="mb-1.5 text-xs font-medium text-primary sm:mb-2 sm:text-sm">
+          {formattedDate}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <div className="relative w-24 shrink-0 sm:w-28">
           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground sm:left-3 sm:text-sm">
             £
@@ -112,7 +129,19 @@ export function ExpenseForm({ expense, onUpdate }: ExpenseFormProps) {
             className="h-8 bg-background border-border text-sm text-foreground placeholder:text-muted-foreground sm:h-9 sm:text-base"
           />
         </div>
+        {onDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Delete expense item"
+            onClick={() => onDelete(expense.id)}
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive sm:h-9 sm:w-9"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
-  )
+  );
 }
