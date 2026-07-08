@@ -231,11 +231,7 @@ export default function SharedPage() {
         setSharedBudgets(budgets);
         budgets.forEach((budget) => {
           if (!user) return;
-          void flushPendingPeriods(
-            user.uid,
-            budget.id,
-            budget.periods || [],
-          );
+          void flushPendingPeriods(user.uid, budget.id, budget.periods || []);
         });
         setIsLoaded(true);
       },
@@ -304,8 +300,14 @@ export default function SharedPage() {
     }));
   }, [activeSharedBudget]);
 
-  const getMemberLabel = (member: { name?: string; email?: string; uid: string }) =>
-    member.name?.trim() || member.email?.trim() || `Member ${member.uid.slice(0, 6)}`;
+  const getMemberLabel = (member: {
+    name?: string;
+    email?: string;
+    uid: string;
+  }) =>
+    member.name?.trim() ||
+    member.email?.trim() ||
+    `Member ${member.uid.slice(0, 6)}`;
 
   const getMemberInitials = (label: string) => {
     const parts = label.trim().split(" ");
@@ -379,7 +381,9 @@ export default function SharedPage() {
     if (!user) return;
     setSharedBudgets((prev) =>
       prev.map((budget) =>
-        budget.id === budgetId ? { ...budget, fixedExpenses: nextExpenses } : budget,
+        budget.id === budgetId
+          ? { ...budget, fixedExpenses: nextExpenses }
+          : budget,
       ),
     );
     try {
@@ -397,6 +401,14 @@ export default function SharedPage() {
   const handleAddFixedExpense = (expense: FixedExpense) => {
     if (!activeSharedBudget) return;
     const next = [expense, ...(activeSharedBudget.fixedExpenses || [])];
+    saveSharedFixedExpenses(activeSharedBudget.id, next);
+  };
+
+  const handleUpdateFixedExpense = (expense: FixedExpense) => {
+    if (!activeSharedBudget) return;
+    const next = (activeSharedBudget.fixedExpenses || []).map((item) =>
+      item.id === expense.id ? expense : item,
+    );
     saveSharedFixedExpenses(activeSharedBudget.id, next);
   };
 
@@ -733,9 +745,16 @@ export default function SharedPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Dialog open={isCreateSharedOpen} onOpenChange={setIsCreateSharedOpen}>
+            <Dialog
+              open={isCreateSharedOpen}
+              onOpenChange={setIsCreateSharedOpen}
+            >
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" aria-label="New shared budget">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  aria-label="New shared budget"
+                >
                   <Plus className="h-4 w-4 [@media(min-width:744px)]:hidden" />
                   <span className="hidden [@media(min-width:744px)]:inline">
                     New shared budget
@@ -782,7 +801,10 @@ export default function SharedPage() {
 
             {activeSharedBudget && (
               <div className="flex flex-wrap gap-2">
-                <Dialog open={isEditSharedOpen} onOpenChange={setIsEditSharedOpen}>
+                <Dialog
+                  open={isEditSharedOpen}
+                  onOpenChange={setIsEditSharedOpen}
+                >
                   <DialogTrigger asChild>
                     <Button
                       size="sm"
@@ -853,6 +875,7 @@ export default function SharedPage() {
                     <FixedExpensesCard
                       items={activeSharedBudget.fixedExpenses || []}
                       onAdd={handleAddFixedExpense}
+                      onUpdate={handleUpdateFixedExpense}
                       onDelete={handleDeleteFixedExpense}
                     />
                   </DialogContent>
@@ -860,7 +883,11 @@ export default function SharedPage() {
 
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm" disabled={!canShare} aria-label="Share link">
+                    <Button
+                      size="sm"
+                      disabled={!canShare}
+                      aria-label="Share link"
+                    >
                       <Share2 className="h-4 w-4 [@media(min-width:744px)]:hidden" />
                       <span className="hidden [@media(min-width:744px)]:inline">
                         Share link
@@ -885,39 +912,39 @@ export default function SharedPage() {
                           Create a link and send it to your friend.
                         </p>
                         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCreateInvite}
-                    disabled={!canShare}
-                    data-testid="share-create-link"
-                  >
-                    Create link
-                  </Button>
-                  <Input
-                    readOnly
-                    value={inviteLink}
-                    placeholder="Link will appear here"
-                    className="h-9 bg-background"
-                    data-testid="share-link-input"
-                  />
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleCopyInvite}
-                    disabled={!inviteLink}
-                    data-testid="share-copy-link"
-                  >
-                    {shareCopied ? "Copied" : "Copy"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleShareInvite}
-                    disabled={!inviteLink}
-                    data-testid="share-native"
-                  >
-                    Share
-                  </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCreateInvite}
+                            disabled={!canShare}
+                            data-testid="share-create-link"
+                          >
+                            Create link
+                          </Button>
+                          <Input
+                            readOnly
+                            value={inviteLink}
+                            placeholder="Link will appear here"
+                            className="h-9 bg-background"
+                            data-testid="share-link-input"
+                          />
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={handleCopyInvite}
+                            disabled={!inviteLink}
+                            data-testid="share-copy-link"
+                          >
+                            {shareCopied ? "Copied" : "Copy"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleShareInvite}
+                            disabled={!inviteLink}
+                            data-testid="share-native"
+                          >
+                            Share
+                          </Button>
                         </div>
                       </div>
                       {shareError && (
@@ -967,7 +994,9 @@ export default function SharedPage() {
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete this shared budget?</AlertDialogTitle>
+                      <AlertDialogTitle>
+                        Delete this shared budget?
+                      </AlertDialogTitle>
                       <AlertDialogDescription>
                         This will permanently delete all periods and entries in
                         this shared budget for every member. This action cannot
@@ -1021,9 +1050,7 @@ export default function SharedPage() {
                         : "text-muted-foreground hover:bg-secondary/70",
                     )}
                   >
-                    <p className="font-medium text-foreground">
-                      {budget.name}
-                    </p>
+                    <p className="font-medium text-foreground">{budget.name}</p>
                     {budget.description && (
                       <p className="text-xs text-muted-foreground">
                         {budget.description}
@@ -1153,7 +1180,9 @@ export default function SharedPage() {
                             key={period.id}
                             period={period}
                             onDelete={handleDeletePeriod}
-                            fixedExpenses={activeSharedBudget.fixedExpenses || []}
+                            fixedExpenses={
+                              activeSharedBudget.fixedExpenses || []
+                            }
                             editHref={`/shared/${activeSharedBudget.id}/periods/${period.id}`}
                           />
                         ))}

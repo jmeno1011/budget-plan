@@ -256,6 +256,14 @@ export default function Home() {
     savePersonalFixedExpenses([expense, ...personalFixedExpenses]);
   };
 
+  const handleUpdateFixedExpense = (expense: FixedExpense) => {
+    savePersonalFixedExpenses(
+      personalFixedExpenses.map((item) =>
+        item.id === expense.id ? expense : item,
+      ),
+    );
+  };
+
   const handleDeleteFixedExpense = (id: string) => {
     savePersonalFixedExpenses(personalFixedExpenses.filter((e) => e.id !== id));
   };
@@ -454,6 +462,7 @@ export default function Home() {
                 <FixedExpensesCard
                   items={personalFixedExpenses}
                   onAdd={handleAddFixedExpense}
+                  onUpdate={handleUpdateFixedExpense}
                   onDelete={handleDeleteFixedExpense}
                 />
               </DialogContent>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,6 +21,7 @@ interface FixedExpensesCardProps {
   title?: string;
   items: FixedExpense[];
   onAdd: (expense: FixedExpense) => void;
+  onUpdate: (expense: FixedExpense) => void;
   onDelete: (id: string) => void;
 }
 
@@ -28,12 +29,18 @@ export function FixedExpensesCard({
   title = "Fixed expenses",
   items,
   onAdd,
+  onUpdate,
   onDelete,
 }: FixedExpensesCardProps) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editNameError, setEditNameError] = useState<string | null>(null);
+  const [editAmountError, setEditAmountError] = useState<string | null>(null);
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + item.amount, 0),
@@ -57,6 +64,39 @@ export function FixedExpensesCard({
     setAmount("");
     setNameError(null);
     setAmountError(null);
+  };
+
+  const startEdit = (item: FixedExpense) => {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditAmount(item.amount.toString());
+    setEditNameError(null);
+    setEditAmountError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+    setEditAmount("");
+    setEditNameError(null);
+    setEditAmountError(null);
+  };
+
+  const handleUpdate = (item: FixedExpense) => {
+    const trimmedName = editName.trim();
+    const parsed = Number(editAmount);
+    const hasName = Boolean(trimmedName);
+    const hasAmount = Number.isFinite(parsed) && parsed > 0;
+    setEditNameError(hasName ? null : "Please enter a name.");
+    setEditAmountError(hasAmount ? null : "Please enter an amount.");
+    if (!hasName || !hasAmount) return;
+
+    onUpdate({
+      ...item,
+      name: trimmedName,
+      amount: parsed,
+    });
+    cancelEdit();
   };
 
   return (
@@ -122,41 +162,120 @@ export function FixedExpensesCard({
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2"
+              className="rounded-lg border border-border/60 bg-background px-3 py-2"
               data-testid={`fixed-expense-item-${item.id}`}
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {item.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  £{item.amount.toFixed(2)}
-                </p>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Delete fixed expense">
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+              {editingId === item.id ? (
+                <div className="grid gap-2 sm:grid-cols-[1.5fr_1fr_auto_auto]">
+                  <div>
+                    <Input
+                      aria-label="Fixed expense name"
+                      value={editName}
+                      onChange={(e) => {
+                        setEditName(e.target.value);
+                        if (editNameError) setEditNameError(null);
+                      }}
+                      className="bg-background"
+                      aria-invalid={Boolean(editNameError)}
+                    />
+                    {editNameError && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {editNameError}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      aria-label="Fixed expense amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editAmount}
+                      onChange={(e) => {
+                        setEditAmount(e.target.value);
+                        if (editAmountError) setEditAmountError(null);
+                      }}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      className="bg-background"
+                      aria-invalid={Boolean(editAmountError)}
+                    />
+                    {editAmountError && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {editAmountError}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleUpdate(item)}
+                    aria-label="Save fixed expense"
+                  >
+                    <Save className="h-4 w-4" />
+                    {/* Save */}
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this fixed expense?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This item will be removed from the fixed expenses list.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => onDelete(item.id)}
-                      className="bg-destructive text-white hover:bg-destructive/90"
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={cancelEdit}
+                    aria-label="Cancel fixed expense edit"
+                  >
+                    <X className="h-4 w-4" />
+                    {/* Cancel */}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      £{item.amount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Edit fixed expense"
+                      onClick={() => startEdit(item)}
                     >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Delete fixed expense"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Delete this fixed expense?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This item will be removed from the fixed expenses
+                            list.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => onDelete(item.id)}
+                            className="bg-destructive text-white hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

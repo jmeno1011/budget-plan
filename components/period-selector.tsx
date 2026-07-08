@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { FixedExpense, Period } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
+import { snapshotFixedExpenses } from "@/lib/fixed-expenses";
 
 interface PeriodSelectorProps {
   onCreatePeriod: (period: Period) => void;
@@ -90,6 +91,9 @@ export function PeriodSelector({
       includeFixedExpenses || budgetValue !== undefined
         ? finalBudgetBase + (includeFixedExpenses ? fixedTotal : 0)
         : undefined;
+    const fixedExpensesSnapshot = includeFixedExpenses
+      ? snapshotFixedExpenses(fixedExpenses)
+      : undefined;
 
     const newPeriod: Period = {
       id: crypto.randomUUID(),
@@ -99,6 +103,9 @@ export function PeriodSelector({
       expenses,
       includeFixedExpenses,
     };
+    if (fixedExpensesSnapshot) {
+      newPeriod.fixedExpensesSnapshot = fixedExpensesSnapshot;
+    }
     if (finalBudget !== undefined) {
       newPeriod.budget = finalBudget;
     }

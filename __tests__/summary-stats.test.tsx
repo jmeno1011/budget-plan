@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react'
 import { SummaryStats } from '@/components/summary-stats'
 
 describe('SummaryStats', () => {
-  it('includes fixed expenses when flagged', () => {
-    const fixedExpenses = [{ id: 'fx-1', name: 'Netflix', amount: 5 }]
+  it('uses a period fixed expense snapshot when flagged', () => {
+    const fixedExpenses = [{ id: 'fx-1', name: 'Netflix', amount: 8 }]
     const periods = [
       {
         id: 'p-1',
@@ -11,6 +11,7 @@ describe('SummaryStats', () => {
         startDate: '2026-01-01',
         endDate: '2026-01-02',
         includeFixedExpenses: true,
+        fixedExpensesSnapshot: [{ id: 'fx-1', name: 'Netflix', amount: 5 }],
         expenses: [{ id: 'e-1', date: '2026-01-01', amount: 20 }],
       },
       {

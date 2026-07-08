@@ -7,6 +7,7 @@ import {
   PoundSterling,
 } from "lucide-react";
 import type { FixedExpense, Period } from "@/lib/types";
+import { getTotalSpentForPeriod } from "@/lib/fixed-expenses";
 
 interface SummaryStatsProps {
   periods: Period[];
@@ -14,13 +15,8 @@ interface SummaryStatsProps {
 }
 
 export function SummaryStats({ periods, fixedExpenses = [] }: SummaryStatsProps) {
-  const fixedTotal = fixedExpenses.reduce(
-    (sum, item) => sum + item.amount,
-    0,
-  );
   const periodTotal = (period: Period) =>
-    period.expenses.reduce((s, exp) => s + exp.amount, 0) +
-    (period.includeFixedExpenses ? fixedTotal : 0);
+    getTotalSpentForPeriod(period, fixedExpenses);
 
   const totalSpending = periods.reduce(
     (sum, period) => sum + periodTotal(period),

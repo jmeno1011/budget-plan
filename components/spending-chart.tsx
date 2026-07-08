@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { FixedExpense, Period } from "@/lib/types";
+import { getTotalSpentForPeriod } from "@/lib/fixed-expenses";
 
 interface SpendingChartProps {
   periods: Period[];
@@ -27,17 +28,10 @@ export function SpendingChart({
     (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
   );
 
-  const fixedTotal = fixedExpenses.reduce(
-    (sum, item) => sum + item.amount,
-    0,
-  );
-
   const chartData = sortedPeriods.map((period) => ({
     name: period.name.length > 6 ? period.name.slice(0, 6) + ".." : period.name,
     fullName: period.name,
-    total:
-      period.expenses.reduce((sum, exp) => sum + exp.amount, 0) +
-      (period.includeFixedExpenses ? fixedTotal : 0),
+    total: getTotalSpentForPeriod(period, fixedExpenses),
     startDate: period.startDate,
   }));
 
@@ -132,8 +126,11 @@ export function SpendingChart({
                   if (value === undefined || value === null) return null;
                   const numeric = Number(value);
                   if (!Number.isFinite(numeric) || numeric === 0) return null;
-                  const xPos = (x ?? 0) + (width ?? 0) / 2;
-                  const yPos = numeric >= 0 ? (y ?? 0) - 6 : (y ?? 0) + (height ?? 0) + 12;
+                  const xPos = Number(x ?? 0) + Number(width ?? 0) / 2;
+                  const yPos =
+                    numeric >= 0
+                      ? Number(y ?? 0) - 6
+                      : Number(y ?? 0) + Number(height ?? 0) + 12;
                   return (
                     <text
                       x={xPos}

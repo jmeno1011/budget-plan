@@ -12,6 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { FixedExpense, Period, Expense } from "@/lib/types"
+import {
+  getFixedExpensesForPeriod,
+  getTotalSpentForPeriod,
+  snapshotFixedExpenses,
+} from "@/lib/fixed-expenses"
 import { auth, db } from "@/lib/firebase"
 import { collectionName } from "@/lib/firestore-paths"
 import { e2eFixedExpenses, e2ePeriods } from "@/lib/e2e-fixtures"
@@ -154,6 +159,13 @@ export default function PeriodEditPage() {
     dirtyRef.current = true
     setPeriod((prev) => {
       if (!prev) return prev
+      if (value && !prev.fixedExpensesSnapshot) {
+        return {
+          ...prev,
+          includeFixedExpenses: value,
+          fixedExpensesSnapshot: snapshotFixedExpenses(fixedExpenses),
+        }
+      }
       return { ...prev, includeFixedExpenses: value }
     })
   }
@@ -195,10 +207,10 @@ export default function PeriodEditPage() {
     return `£${value.toFixed(2)}`
   }
 
-  const fixedTotal = fixedExpenses.reduce((sum, item) => sum + item.amount, 0)
-  const baseTotal = period?.expenses.reduce((sum, exp) => sum + exp.amount, 0) ?? 0
-  const totalSpent =
-    baseTotal + (period?.includeFixedExpenses ? fixedTotal : 0)
+  const fixedItems = period
+    ? getFixedExpensesForPeriod(period, fixedExpenses)
+    : fixedExpenses
+  const totalSpent = period ? getTotalSpentForPeriod(period, fixedExpenses) : 0
 
   if (!isLoaded) {
     return (
@@ -336,13 +348,13 @@ export default function PeriodEditPage() {
             <p className="text-sm text-muted-foreground">
               Fixed expenses are not included in this period.
             </p>
-          ) : fixedExpenses.length === 0 ? (
+          ) : fixedItems.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No fixed expenses yet.
             </p>
           ) : (
             <div className="space-y-2">
-              {fixedExpenses.map((item) => (
+              {fixedItems.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2"

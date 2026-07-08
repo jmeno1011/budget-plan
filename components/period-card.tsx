@@ -24,6 +24,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { CATEGORIES, type FixedExpense, type Period } from "@/lib/types"
+import {
+  getFixedExpensesForPeriod,
+  getFixedExpensesTotalForPeriod,
+  getTotalSpentForPeriod,
+} from "@/lib/fixed-expenses"
 
 interface PeriodCardProps {
   period: Period
@@ -42,9 +47,9 @@ export function PeriodCard({
   const editStorageKey = "budget-plan-edit-period"
 
   const baseTotal = period.expenses.reduce((sum, exp) => sum + exp.amount, 0)
-  const fixedTotal = fixedExpenses.reduce((sum, item) => sum + item.amount, 0)
-  const totalSpent =
-    baseTotal + (period.includeFixedExpenses ? fixedTotal : 0)
+  const fixedItems = getFixedExpensesForPeriod(period, fixedExpenses)
+  const fixedTotal = getFixedExpensesTotalForPeriod(period, fixedExpenses)
+  const totalSpent = getTotalSpentForPeriod(period, fixedExpenses)
   const budget = period.budget
   const remaining =
     typeof budget === "number" ? Number(budget) - totalSpent : undefined
@@ -193,13 +198,13 @@ export function PeriodCard({
                   Total {formatMoney(fixedTotal)}
                 </p>
               </div>
-              {fixedExpenses.length === 0 ? (
+              {fixedItems.length === 0 ? (
                 <p className="mt-2 text-xs text-muted-foreground">
                   No fixed expenses yet.
                 </p>
               ) : (
                 <div className="mt-2 space-y-1.5">
-                  {fixedExpenses.map((item) => (
+                  {fixedItems.map((item) => (
                     <div
                       key={item.id}
                       className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-xs"

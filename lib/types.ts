@@ -14,6 +14,7 @@ export interface Period {
   expenses: Expense[]
   budget?: number
   includeFixedExpenses?: boolean
+  fixedExpensesSnapshot?: FixedExpense[]
 }
 
 export interface FixedExpense {
