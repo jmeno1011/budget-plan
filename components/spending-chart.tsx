@@ -68,7 +68,7 @@ export function SpendingChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 8, right: 5, left: -10, bottom: 18 }}
+            margin={{ top: 8, right: 5, left: 8, bottom: 18 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -95,7 +95,8 @@ export function SpendingChart({
                 value < 0 ? `-£${Math.abs(value)}` : `£${value}`
               }
               domain={[lowerBound, upperBound]}
-              width={45}
+              width={64}
+              tickMargin={8}
             />
             <Tooltip
               cursor={{ fill: "rgba(0,0,0,0.05)" }}
