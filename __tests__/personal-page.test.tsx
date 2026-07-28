@@ -85,8 +85,8 @@ describe('Personal page (signed in)', () => {
     const fixedButton = await screen.findByText('Fixed £5.00')
     fireEvent.click(fixedButton)
     expect(
-      await screen.findByText('Fixed expenses'),
-    ).toBeInTheDocument()
+      (await screen.findAllByText('Fixed expenses')).length,
+    ).toBeGreaterThan(0)
   })
 
   it('opens the add period modal', async () => {
@@ -108,8 +108,8 @@ describe('Personal page (signed in)', () => {
 
   it('toggles a period card to show entries', async () => {
     render(<Home />)
-    const period = await screen.findByText('Alpha period')
-    fireEvent.click(period)
+    const periodHeaders = await screen.findAllByTestId('period-card-header')
+    fireEvent.click(periodHeaders[0])
     expect(
       await screen.findByText('Spending entries'),
     ).toBeInTheDocument()

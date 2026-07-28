@@ -2,11 +2,9 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { format, parseISO } from "date-fns"
+import { eachDayOfInterval, format, parseISO } from "date-fns"
 import { enGB } from "date-fns/locale"
 import {
-  ChevronDown,
-  ChevronUp,
   Pencil,
   PoundSterling,
   Trash2,
@@ -46,13 +44,9 @@ export function PeriodCard({
   const [isExpanded, setIsExpanded] = useState(false)
   const editStorageKey = "budget-plan-edit-period"
 
-  const baseTotal = period.expenses.reduce((sum, exp) => sum + exp.amount, 0)
   const fixedItems = getFixedExpensesForPeriod(period, fixedExpenses)
   const fixedTotal = getFixedExpensesTotalForPeriod(period, fixedExpenses)
   const totalSpent = getTotalSpentForPeriod(period, fixedExpenses)
-  const budget = period.budget
-  const remaining =
-    typeof budget === "number" ? Number(budget) - totalSpent : undefined
   
   const categoryTotals = period.expenses.reduce((acc, exp) => {
     if (exp.category && exp.amount !== 0) {
@@ -88,101 +82,122 @@ export function PeriodCard({
     }
   }
 
+  const periodDays = eachDayOfInterval({
+    start: parseISO(period.startDate),
+    end: parseISO(period.endDate),
+  })
+
+  const dailyActivity = periodDays.map((day) => {
+    const date = format(day, "yyyy-MM-dd")
+    const total = period.expenses
+      .filter((expense) => expense.date === date)
+      .reduce((sum, expense) => sum + expense.amount, 0)
+    return { date, total }
+  })
+  const spentDays = dailyActivity.filter((day) => day.total > 0).length
+  const noSpendDays = dailyActivity.length - spentDays
+
+  const getActivityClass = (amount: number) => {
+    if (amount <= 0) return "bg-muted"
+    if (amount <= 25) return "bg-primary/20"
+    if (amount <= 75) return "bg-primary/40"
+    if (amount <= 150) return "bg-primary/70"
+    return "bg-primary"
+  }
+
   return (
     <div
       className="overflow-hidden rounded-lg border border-border bg-card"
       data-testid="period-card"
     >
       <div
-        className="flex cursor-pointer items-center justify-between p-2.5 hover:bg-secondary/50 transition-colors sm:p-4"
+        className="cursor-pointer p-2.5 transition-colors hover:bg-secondary/50 sm:p-4"
         onClick={() => setIsExpanded(!isExpanded)}
+        data-testid="period-card-header"
       >
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <PoundSterling className="h-5 w-5 text-primary" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 sm:flex">
+              <PoundSterling className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-sm font-semibold text-card-foreground sm:text-lg">{period.name}</h3>
+              <p className="text-xs text-muted-foreground">
+                <span className="sm:hidden">{formatDateShort(period.startDate)} ~ {formatDateShort(period.endDate)}</span>
+                <span className="hidden sm:inline">{formatDate(period.startDate)} ~ {formatDate(period.endDate)}</span>
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-semibold text-card-foreground truncate sm:text-lg">{period.name}</h3>
-            <p className="text-xs text-muted-foreground">
-              <span className="sm:hidden">{formatDateShort(period.startDate)} ~ {formatDateShort(period.endDate)}</span>
-              <span className="hidden sm:inline">{formatDate(period.startDate)} ~ {formatDate(period.endDate)}</span>
-            </p>
+
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <div className="text-right">
+              <p className="hidden text-xs text-muted-foreground sm:block">Total spent</p>
+              <p className="text-base font-bold text-primary sm:text-xl">{formatMoney(totalSpent)}</p>
+            </div>
+            <Button
+              asChild
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9"
+            >
+              <Link
+                href={editHref || `/periods/${period.id}`}
+                aria-label="Edit period"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  storeEditPeriod()
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+              </Link>
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Delete period"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive sm:h-9 sm:w-9"
+                >
+                  <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this period?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    All spending entries in this period will be deleted. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => onDelete(period.id)}
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground hidden sm:block">Total spent</p>
-            <p className="text-base font-bold text-primary sm:text-xl">{formatMoney(totalSpent)}</p>
-            {typeof budget === "number" && (
-              <p className="text-xs text-muted-foreground">
-                Budget {formatMoney(budget)} ·{" "}
-                <span
-                  className={
-                    remaining !== undefined && remaining < 0
-                      ? "text-destructive"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {remaining !== undefined && remaining < 0
-                    ? `Over by ${formatMoney(Math.abs(remaining))}`
-                    : `Remaining ${formatMoney(remaining || 0)}`}
-                </span>
-              </p>
-            )}
+        <div className="mt-3 grid gap-2 sm:ml-[52px] sm:grid-cols-[1fr_auto] sm:items-end">
+          <div className="grid grid-cols-7 gap-1 sm:grid-cols-[repeat(auto-fit,minmax(10px,16px))]">
+            {dailyActivity.map((day) => (
+              <div
+                key={day.date}
+                className={`aspect-square min-w-2 rounded-sm border border-border/60 ${getActivityClass(day.total)}`}
+                title={`${formatExpenseDate(day.date)} · ${formatMoney(day.total)}`}
+                data-testid={`period-activity-day-${day.date}`}
+              />
+            ))}
           </div>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="hidden sm:inline-flex"
-          >
-            <Link
-              href={editHref || `/periods/${period.id}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                storeEditPeriod()
-              }}
-            >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Link>
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => e.stopPropagation()}
-                aria-label="Delete period"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive sm:h-9 sm:w-9"
-              >
-                <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this period?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  All spending entries in this period will be deleted. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => onDelete(period.id)}
-                  className="bg-destructive text-white hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          )}
+          <p className="text-xs text-muted-foreground">
+            {spentDays} spent · {noSpendDays} no-spend
+          </p>
         </div>
       </div>
 
@@ -224,18 +239,6 @@ export function PeriodCard({
 
           <div className="mb-2.5 flex items-center justify-between sm:mb-3">
             <p className="text-sm font-medium text-foreground">Spending entries</p>
-            <Button asChild variant="outline" size="sm" className="sm:hidden">
-              <Link
-                href={editHref || `/periods/${period.id}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  storeEditPeriod()
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
           </div>
           {Object.keys(categoryTotals).length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5 sm:mb-4 sm:gap-2">
