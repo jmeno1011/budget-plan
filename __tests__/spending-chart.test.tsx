@@ -3,7 +3,7 @@ import { SpendingChart } from '@/components/spending-chart'
 
 const rechartsProps: {
   barChartMargin?: { left?: number }
-  yAxisWidth?: number
+  yAxisRendered?: boolean
 } = {}
 
 jest.mock('recharts', () => ({
@@ -20,14 +20,18 @@ jest.mock('recharts', () => ({
   },
   CartesianGrid: () => <div />,
   Cell: () => <div />,
-  LabelList: () => <div />,
+  LabelList: ({ content }: { content?: (props: Record<string, unknown>) => React.ReactNode }) => (
+    <svg>
+      {content?.({ x: 1, y: 1, width: 10, height: 20, value: 1473.91 })}
+    </svg>
+  ),
   ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => (
     <div>{children}</div>
   ),
   Tooltip: () => <div />,
   XAxis: () => <div />,
-  YAxis: ({ width }: { width?: number }) => {
-    rechartsProps.yAxisWidth = width
+  YAxis: () => {
+    rechartsProps.yAxisRendered = true
     return <div />
   },
 }))
@@ -35,7 +39,7 @@ jest.mock('recharts', () => ({
 describe('SpendingChart', () => {
   beforeEach(() => {
     rechartsProps.barChartMargin = undefined
-    rechartsProps.yAxisWidth = undefined
+    rechartsProps.yAxisRendered = false
   })
 
   it('shows empty state when no periods', () => {
@@ -45,7 +49,7 @@ describe('SpendingChart', () => {
     ).toBeInTheDocument()
   })
 
-  it('reserves enough space for y-axis labels', () => {
+  it('does not render y-axis labels and hides bar value labels on mobile', () => {
     render(
       <SpendingChart
         periods={[
@@ -61,7 +65,8 @@ describe('SpendingChart', () => {
       />,
     )
 
-    expect(rechartsProps.barChartMargin?.left).toBeGreaterThanOrEqual(0)
-    expect(rechartsProps.yAxisWidth).toBeGreaterThanOrEqual(64)
+    expect(rechartsProps.barChartMargin?.left).toBe(0)
+    expect(rechartsProps.yAxisRendered).toBe(false)
+    expect(screen.getByText('£1473.91')).toHaveClass('hidden', 'sm:inline')
   })
 })

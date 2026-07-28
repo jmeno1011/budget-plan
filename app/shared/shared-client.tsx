@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -29,8 +30,23 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { FixedExpense, Period, SharedBudget } from "@/lib/types";
-import { Pencil, Plus, Share2, Trash2, Wallet } from "lucide-react";
+import type {
+  FixedExpense,
+  Period,
+  SharedBudget,
+  SharedBudgetPreferences,
+} from "@/lib/types";
+import {
+  ArrowDown,
+  ArrowUp,
+  Pencil,
+  Plus,
+  Settings,
+  Share2,
+  Star,
+  Trash2,
+  Wallet,
+} from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import {
@@ -54,11 +70,14 @@ export default function SharedPage() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [sharedBudgets, setSharedBudgets] = useState<SharedBudget[]>([]);
+  const [sharedBudgetPreferences, setSharedBudgetPreferences] =
+    useState<SharedBudgetPreferences>({});
   const [activeSharedId, setActiveSharedId] = useState<string | null>(null);
   const [isCreateSharedPeriodOpen, setIsCreateSharedPeriodOpen] =
     useState(false);
   const [isCreateSharedOpen, setIsCreateSharedOpen] = useState(false);
   const [isEditSharedOpen, setIsEditSharedOpen] = useState(false);
+  const [isSharedSettingsOpen, setIsSharedSettingsOpen] = useState(false);
   const [createSharedError, setCreateSharedError] = useState<string | null>(
     null,
   );
@@ -177,6 +196,89 @@ export default function SharedPage() {
     }
   };
 
+  const getOrderedBudgets = (
+    budgets: SharedBudget[],
+    preferences: SharedBudgetPreferences,
+  ) =>
+    budgets
+      .map((budget, index) => ({
+        budget,
+        index,
+        preference: preferences[budget.id] || {},
+      }))
+      .sort((a, b) => {
+        const favoriteDiff =
+          Number(Boolean(b.preference.favorite)) -
+          Number(Boolean(a.preference.favorite));
+        if (favoriteDiff !== 0) return favoriteDiff;
+
+        const aOrder = a.preference.sortOrder ?? a.index;
+        const bOrder = b.preference.sortOrder ?? b.index;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.index - b.index;
+      })
+      .map(({ budget }) => budget);
+
+  const persistSharedBudgetPreferences = async (
+    nextPreferences: SharedBudgetPreferences,
+  ) => {
+    setSharedBudgetPreferences(nextPreferences);
+    if (isE2ETest || !user) return;
+
+    try {
+      await setDoc(
+        doc(db, collectionName("expense_track"), user.uid),
+        {
+          ownerUid: user.uid,
+          sharedBudgetPreferences: nextPreferences,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } catch (e) {
+      console.error("Failed to save shared budget preferences", e);
+      setSharedSaveError("Failed to save shared budget settings.");
+    }
+  };
+
+  const saveVisibleSharedBudgetOrder = (orderedBudgets: SharedBudget[]) => {
+    const nextPreferences: SharedBudgetPreferences = {
+      ...sharedBudgetPreferences,
+    };
+    orderedBudgets.forEach((budget, index) => {
+      nextPreferences[budget.id] = {
+        ...nextPreferences[budget.id],
+        sortOrder: index,
+      };
+    });
+    void persistSharedBudgetPreferences(nextPreferences);
+  };
+
+  const handleToggleSharedFavorite = (budgetId: string) => {
+    const nextPreferences: SharedBudgetPreferences = {
+      ...sharedBudgetPreferences,
+      [budgetId]: {
+        ...sharedBudgetPreferences[budgetId],
+        favorite: !sharedBudgetPreferences[budgetId]?.favorite,
+      },
+    };
+    void persistSharedBudgetPreferences(nextPreferences);
+  };
+
+  const handleMoveSharedBudget = (budgetId: string, direction: -1 | 1) => {
+    const currentIndex = orderedSharedBudgets.findIndex(
+      (budget) => budget.id === budgetId,
+    );
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0) return;
+    if (targetIndex >= orderedSharedBudgets.length) return;
+
+    const nextOrder = [...orderedSharedBudgets];
+    const [moved] = nextOrder.splice(currentIndex, 1);
+    nextOrder.splice(targetIndex, 0, moved);
+    saveVisibleSharedBudgetOrder(nextOrder);
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setOrigin(window.location.origin);
@@ -199,6 +301,7 @@ export default function SharedPage() {
       } as User;
       setUser(e2eUser);
       setSharedBudgets(e2eSharedBudgets);
+      setSharedBudgetPreferences({});
       setActiveSharedId(e2eSharedBudgets[0]?.id ?? null);
       setIsLoaded(true);
       return;
@@ -207,6 +310,7 @@ export default function SharedPage() {
       setUser(currentUser);
       if (!currentUser) {
         setSharedBudgets([]);
+        setSharedBudgetPreferences({});
         setActiveSharedId(null);
         setIsLoaded(true);
         return;
@@ -215,6 +319,23 @@ export default function SharedPage() {
     });
     return () => unsub();
   }, [isE2ETest]);
+
+  useEffect(() => {
+    if (isE2ETest || !user) return;
+    const unsub = onSnapshot(
+      doc(db, collectionName("expense_track"), user.uid),
+      (docSnap) => {
+        const data = docSnap.data();
+        setSharedBudgetPreferences(
+          (data?.sharedBudgetPreferences as SharedBudgetPreferences) || {},
+        );
+      },
+      () => {
+        setSharedBudgetPreferences({});
+      },
+    );
+    return () => unsub();
+  }, [user, isE2ETest]);
 
   useEffect(() => {
     if (isE2ETest || !user) return;
@@ -242,18 +363,25 @@ export default function SharedPage() {
     return () => unsub();
   }, [user, isE2ETest]);
 
+  const orderedSharedBudgets = useMemo(
+    () => getOrderedBudgets(sharedBudgets, sharedBudgetPreferences),
+    [sharedBudgets, sharedBudgetPreferences],
+  );
+
   useEffect(() => {
-    if (sharedBudgets.length === 0) {
+    if (orderedSharedBudgets.length === 0) {
       setActiveSharedId(null);
       return;
     }
-    const exists = sharedBudgets.some((budget) => budget.id === activeSharedId);
+    const exists = orderedSharedBudgets.some(
+      (budget) => budget.id === activeSharedId,
+    );
     if (!exists) {
-      const nextId = sharedBudgets[0].id;
+      const nextId = orderedSharedBudgets[0].id;
       setActiveSharedId(nextId);
       router.replace(`/shared?budgetId=${nextId}`);
     }
-  }, [sharedBudgets, activeSharedId, router]);
+  }, [orderedSharedBudgets, activeSharedId, router]);
 
   const activeSharedBudget = useMemo(
     () => sharedBudgets.find((budget) => budget.id === activeSharedId) || null,
@@ -1019,86 +1147,213 @@ export default function SharedPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-          <aside className="rounded-xl border border-border bg-card p-3">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-medium text-foreground">
-                Shared budgets
-              </p>
-              <span className="text-xs text-muted-foreground">
-                {sharedBudgets.length}
-              </span>
-            </div>
-            {sharedBudgets.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Create a shared budget to start collaborating.
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {sharedBudgets.map((budget) => (
-                  <button
-                    key={budget.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveSharedId(budget.id);
-                      router.replace(`/shared?budgetId=${budget.id}`);
-                    }}
-                    className={cn(
-                      "w-full rounded-md px-3 py-2 text-left text-sm transition",
-                      budget.id === activeSharedId
-                        ? "bg-secondary text-foreground"
-                        : "text-muted-foreground hover:bg-secondary/70",
-                    )}
-                  >
-                    <p className="font-medium text-foreground">{budget.name}</p>
-                    {budget.description && (
-                      <p className="text-xs text-muted-foreground">
-                        {budget.description}
-                      </p>
-                    )}
-                  </button>
-                ))}
+        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="flex flex-col rounded-xl border border-border bg-card p-3 lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground">
+                  Shared budgets
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  {sharedBudgets.length}
+                </span>
               </div>
-            )}
-
-            {activeSharedBudget && (
-              <div className="mt-4 border-t border-border pt-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    Members
-                  </p>
-                  <span className="text-xs text-muted-foreground">
-                    {membersForView.length}
-                  </span>
-                </div>
-                <div className="mt-2 space-y-2">
-                  {membersForView.map((member) => {
-                    const label = getMemberLabel(member);
-                    const initials = getMemberInitials(label);
+              {orderedSharedBudgets.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Create a shared budget to start collaborating.
+                </p>
+              ) : (
+                <div
+                  className="min-h-0 space-y-1 overflow-y-auto pr-1"
+                  data-testid="shared-budget-sidebar-list"
+                >
+                  {orderedSharedBudgets.map((budget) => {
+                    const isFavorite =
+                      Boolean(sharedBudgetPreferences[budget.id]?.favorite);
                     return (
-                      <div
-                        key={member.uid}
-                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground"
-                      >
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[0.65rem] font-semibold text-primary">
-                          {initials}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {label}
-                          </p>
-                        </div>
-                        {member.uid === activeSharedBudget.ownerUid && (
-                          <span className="text-[0.6rem] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                            Owner
-                          </span>
+                      <button
+                        key={budget.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveSharedId(budget.id);
+                          router.replace(`/shared?budgetId=${budget.id}`);
+                        }}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition",
+                          budget.id === activeSharedId
+                            ? "bg-secondary text-foreground"
+                            : "text-muted-foreground hover:bg-secondary/70",
                         )}
-                      </div>
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-foreground">
+                            {budget.name}
+                          </span>
+                          {budget.description && (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {budget.description}
+                            </span>
+                          )}
+                        </span>
+                        {isFavorite && (
+                          <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                        )}
+                      </button>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+
+              {activeSharedBudget && (
+                <div className="mt-4 min-h-0 border-t border-border pt-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      Members
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {membersForView.length}
+                    </span>
+                  </div>
+                  <div className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1 lg:max-h-none">
+                    {membersForView.map((member) => {
+                      const label = getMemberLabel(member);
+                      const initials = getMemberInitials(label);
+                      return (
+                        <div
+                          key={member.uid}
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground"
+                        >
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[0.65rem] font-semibold text-primary">
+                            {initials}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {label}
+                            </p>
+                          </div>
+                          {member.uid === activeSharedBudget.ownerUid && (
+                            <span className="text-[0.6rem] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                              Owner
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 border-t border-border pt-3">
+              <Dialog
+                open={isSharedSettingsOpen}
+                onOpenChange={setIsSharedSettingsOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>Shared budget settings</DialogTitle>
+                    <DialogDescription>
+                      Manage your personal sidebar order and favorites.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {orderedSharedBudgets.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Create a shared budget before changing display settings.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {orderedSharedBudgets.map((budget, index) => {
+                        const isFavorite = Boolean(
+                          sharedBudgetPreferences[budget.id]?.favorite,
+                        );
+                        return (
+                          <div
+                            key={budget.id}
+                            className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
+                          >
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={
+                                isFavorite
+                                  ? `Remove ${budget.name} from favorites`
+                                  : `Add ${budget.name} to favorites`
+                              }
+                              onClick={() =>
+                                handleToggleSharedFavorite(budget.id)
+                              }
+                            >
+                              <Star
+                                className={cn(
+                                  "h-4 w-4",
+                                  isFavorite
+                                    ? "fill-primary text-primary"
+                                    : "text-muted-foreground",
+                                )}
+                              />
+                            </Button>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-foreground">
+                                {budget.name}
+                              </p>
+                              {budget.description && (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {budget.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                aria-label={`Move ${budget.name} up`}
+                                disabled={index === 0}
+                                onClick={() =>
+                                  handleMoveSharedBudget(budget.id, -1)
+                                }
+                              >
+                                <ArrowUp className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                aria-label={`Move ${budget.name} down`}
+                                disabled={
+                                  index === orderedSharedBudgets.length - 1
+                                }
+                                onClick={() =>
+                                  handleMoveSharedBudget(budget.id, 1)
+                                }
+                              >
+                                <ArrowDown className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {sharedSaveError && (
+                    <p className="text-xs text-destructive">
+                      {sharedSaveError}
+                    </p>
+                  )}
+                </DialogContent>
+              </Dialog>
+            </div>
           </aside>
 
           <div>

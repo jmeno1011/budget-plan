@@ -42,6 +42,13 @@ export interface SharedBudget {
   inviteCode?: string
 }
 
+export interface SharedBudgetPreference {
+  favorite?: boolean
+  sortOrder?: number
+}
+
+export type SharedBudgetPreferences = Record<string, SharedBudgetPreference>
+
 export const CATEGORIES = [
   { value: "food", label: "Food" },
   { value: "transport", label: "Transport" },

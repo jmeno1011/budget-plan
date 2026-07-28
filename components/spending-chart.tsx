@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   XAxis,
-  YAxis,
   CartesianGrid,
   Cell,
   LabelList,
@@ -36,11 +35,6 @@ export function SpendingChart({
   }));
 
   const primaryColor = "#22c55e";
-  const totals = chartData.map((d) => d.total);
-  const maxValue = Math.max(...totals, 0);
-  const minValue = Math.min(...totals, 0);
-  const upperBound = maxValue === 0 ? 1 : maxValue * 1.1;
-  const lowerBound = minValue === 0 ? 0 : minValue * 1.1;
 
   const formatMoney = (value: number) => {
     if (value < 0) {
@@ -68,7 +62,7 @@ export function SpendingChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 8, right: 5, left: 8, bottom: 18 }}
+            margin={{ top: 8, right: 5, left: 0, bottom: 18 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -85,18 +79,6 @@ export function SpendingChart({
               textAnchor="middle"
               interval={0}
               height={26}
-            />
-            <YAxis
-              stroke="#6b7280"
-              tick={{ fill: "#6b7280", fontSize: 14 }}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(value) =>
-                value < 0 ? `-£${Math.abs(value)}` : `£${value}`
-              }
-              domain={[lowerBound, upperBound]}
-              width={64}
-              tickMargin={8}
             />
             <Tooltip
               cursor={{ fill: "rgba(0,0,0,0.05)" }}
@@ -134,6 +116,7 @@ export function SpendingChart({
                       : Number(y ?? 0) + Number(height ?? 0) + 12;
                   return (
                     <text
+                      className="hidden sm:inline"
                       x={xPos}
                       y={yPos}
                       textAnchor="middle"
