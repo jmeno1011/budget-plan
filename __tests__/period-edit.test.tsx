@@ -76,8 +76,15 @@ describe('Period edit page', () => {
                 endDate: '2026-01-02',
                 includeFixedExpenses: true,
                 expenses: [
-                  { id: 'e-1', date: '2026-01-01', amount: 10 },
-                  { id: 'e-2', date: '2026-01-02', amount: 5 },
+                  { id: 'e-1', date: '2026-01-01', amount: 10, memo: 'asda' },
+                  {
+                    id: 'e-2',
+                    date: '2026-01-02',
+                    amount: 5,
+                    memo: 'bus',
+                    category: 'transport',
+                    categorySource: 'manual',
+                  },
                 ],
               },
             ],
@@ -87,6 +94,10 @@ describe('Period edit page', () => {
         return () => {}
       },
     )
+  })
+
+  afterEach(() => {
+    ;(global.fetch as jest.Mock | undefined)?.mockRestore?.()
   })
 
   it('shows the period title and total spent', async () => {
@@ -124,5 +135,52 @@ describe('Period edit page', () => {
 
     const savedData = (setDoc as jest.Mock).mock.calls[0][1]
     expect(savedData.periods[0].name).toBe('January reset')
+  })
+
+  it('sorts missing categories with AI and saves the result', async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            category: 'food',
+            confidence: 'high',
+          }),
+      } as Response),
+    )
+
+    render(<PeriodEditPage />)
+    const sortButton = await screen.findByRole('button', {
+      name: /ai sort missing categories/i,
+    })
+
+    await act(async () => {
+      fireEvent.click(sortButton)
+    })
+
+    expect(global.fetch).toHaveBeenCalledWith('/api/categorize-expense', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memo: 'asda', amount: 10 }),
+    })
+
+    const saveButton = screen.getByRole('button', { name: /save/i })
+    await act(async () => {
+      fireEvent.click(saveButton)
+    })
+
+    const savedData = (setDoc as jest.Mock).mock.calls[0][1]
+    expect(savedData.periods[0].expenses).toEqual([
+      expect.objectContaining({
+        id: 'e-1',
+        category: 'food',
+        categorySource: 'ai',
+      }),
+      expect.objectContaining({
+        id: 'e-2',
+        category: 'transport',
+        categorySource: 'manual',
+      }),
+    ])
   })
 })

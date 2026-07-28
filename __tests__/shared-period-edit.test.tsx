@@ -76,7 +76,12 @@ describe('Shared period edit page', () => {
                 endDate: '2026-01-02',
                 includeFixedExpenses: false,
                 expenses: [
-                  { id: 'e-1', date: '2026-01-01', amount: 10 },
+                  {
+                    id: 'e-1',
+                    date: '2026-01-01',
+                    amount: 10,
+                    memo: 'sourdough',
+                  },
                 ],
               },
             ],
@@ -86,6 +91,10 @@ describe('Shared period edit page', () => {
         return () => {}
       },
     )
+  })
+
+  afterEach(() => {
+    ;(global.fetch as jest.Mock | undefined)?.mockRestore?.()
   })
 
   it('saves shared period title changes', async () => {
@@ -101,5 +110,40 @@ describe('Shared period edit page', () => {
     const savedData = (setDoc as jest.Mock).mock.calls[0][1]
     expect(savedData.periods[0].name).toBe('Shared reset')
     expect(pushMock).toHaveBeenCalledWith('/shared?budgetId=budget-1')
+  })
+
+  it('sorts missing categories in shared periods with AI', async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            category: 'food',
+            confidence: 'high',
+          }),
+      } as Response),
+    )
+
+    render(<SharedPeriodEditPage />)
+    const sortButton = await screen.findByRole('button', {
+      name: /ai sort missing categories/i,
+    })
+
+    await act(async () => {
+      fireEvent.click(sortButton)
+    })
+
+    const saveButton = screen.getByRole('button', { name: /save/i })
+    await act(async () => {
+      fireEvent.click(saveButton)
+    })
+
+    const savedData = (setDoc as jest.Mock).mock.calls[0][1]
+    expect(savedData.periods[0].expenses[0]).toEqual(
+      expect.objectContaining({
+        category: 'food',
+        categorySource: 'ai',
+      }),
+    )
   })
 })

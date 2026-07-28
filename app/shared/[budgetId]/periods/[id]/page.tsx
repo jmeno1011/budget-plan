@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { eachDayOfInterval, format, parseISO } from "date-fns"
 import { enGB } from "date-fns/locale"
-import { ArrowLeft, Repeat, Wallet } from "lucide-react"
+import { ArrowLeft, Loader2, Repeat, Sparkles, Wallet } from "lucide-react"
 import { DateExpenseGroup } from "@/components/date-expense-group"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -20,6 +20,11 @@ import {
 } from "@/lib/fixed-expenses"
 import { auth, db } from "@/lib/firebase"
 import { collectionName } from "@/lib/firestore-paths"
+import {
+  categorizeMissingExpenses,
+  isExpenseCategorizationTarget,
+  type CategorizationProgress,
+} from "@/lib/expense-categorization"
 import { onAuthStateChanged, type User } from "firebase/auth"
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore"
 
@@ -40,6 +45,8 @@ export default function SharedPeriodEditPage() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [authReady, setAuthReady] = useState(false)
+  const [categorizationProgress, setCategorizationProgress] =
+    useState<(CategorizationProgress & { isSorting: boolean }) | null>(null)
   const dirtyRef = useRef(false)
 
   useEffect(() => {
@@ -216,6 +223,47 @@ export default function SharedPeriodEditPage() {
     })
   }
 
+  const handleSortMissingCategories = async () => {
+    if (!period || categorizationProgress?.isSorting) return
+    const total = period.expenses.filter(isExpenseCategorizationTarget).length
+    if (total === 0) return
+
+    setCategorizationProgress({
+      completed: 0,
+      isSorting: true,
+      sorted: 0,
+      total,
+    })
+
+    const result = await categorizeMissingExpenses(
+      period.expenses,
+      (progress) =>
+        setCategorizationProgress({
+          ...progress,
+          isSorting: true,
+        }),
+    )
+
+    if (result.sorted > 0) {
+      dirtyRef.current = true
+      setPeriod((prev) =>
+        prev
+          ? {
+              ...prev,
+              expenses: result.expenses,
+            }
+          : prev,
+      )
+    }
+
+    setCategorizationProgress({
+      completed: result.completed,
+      isSorting: false,
+      sorted: result.sorted,
+      total: result.total,
+    })
+  }
+
   const handleSave = () => {
     if (!period || !user || !budgetId) return
     const hasExisting = periods.some((p) => p.id === period.id)
@@ -258,6 +306,23 @@ export default function SharedPeriodEditPage() {
         end: parseISO(period.endDate),
       }).map((day) => format(day, "yyyy-MM-dd"))
     : []
+  const uncategorizedExpenseCount = period
+    ? period.expenses.filter(isExpenseCategorizationTarget).length
+    : 0
+  const categorizationButtonLabel = categorizationProgress?.isSorting
+    ? `Sorting ${categorizationProgress.completed}/${categorizationProgress.total}...`
+    : uncategorizedExpenseCount === 0
+      ? "All categorized"
+      : "AI sort missing categories"
+  const categorizationStatus = categorizationProgress
+    ? categorizationProgress.isSorting
+      ? `${categorizationProgress.sorted} sorted so far`
+      : categorizationProgress.total > 0
+        ? `Sorted ${categorizationProgress.sorted}/${categorizationProgress.total}`
+        : null
+    : uncategorizedExpenseCount > 0
+      ? `${uncategorizedExpenseCount} uncategorized`
+      : null
 
   if (!isLoaded) {
     return (
@@ -329,6 +394,36 @@ export default function SharedPeriodEditPage() {
             <h2 className="text-base font-semibold text-foreground sm:text-lg">
               Edit spending entries
             </h2>
+          </div>
+          <div className="mb-4 flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                AI category cleanup
+              </p>
+              {categorizationStatus && (
+                <p className="text-xs text-muted-foreground">
+                  {categorizationStatus}
+                </p>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSortMissingCategories}
+              disabled={
+                uncategorizedExpenseCount === 0 ||
+                Boolean(categorizationProgress?.isSorting)
+              }
+              className="w-full sm:w-auto"
+            >
+              {categorizationProgress?.isSorting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {categorizationButtonLabel}
+            </Button>
           </div>
           <div className="mb-4 grid gap-2 sm:grid-cols-2 sm:items-center">
             <Label
