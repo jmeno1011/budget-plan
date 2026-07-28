@@ -4,6 +4,7 @@ export interface Expense {
   amount: number
   memo?: string
   category?: string
+  categorySource?: "ai" | "manual"
   fixedExpenseId?: string
 }
 
