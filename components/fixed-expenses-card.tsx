@@ -34,13 +34,17 @@ export function FixedExpensesCard({
 }: FixedExpensesCardProps) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [paymentDay, setPaymentDay] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
+  const [paymentDayError, setPaymentDayError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [editPaymentDay, setEditPaymentDay] = useState("");
   const [editNameError, setEditNameError] = useState<string | null>(null);
   const [editAmountError, setEditAmountError] = useState<string | null>(null);
+  const [editPaymentDayError, setEditPaymentDayError] = useState<string | null>(null);
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + item.amount, 0),
@@ -50,51 +54,75 @@ export function FixedExpensesCard({
   const handleAdd = () => {
     const trimmedName = name.trim();
     const parsed = Number(amount);
+    const parsedPaymentDay = Number(paymentDay);
     const hasName = Boolean(trimmedName);
     const hasAmount = Number.isFinite(parsed) && parsed > 0;
+    const hasPaymentDay =
+      Number.isInteger(parsedPaymentDay) &&
+      parsedPaymentDay >= 1 &&
+      parsedPaymentDay <= 31;
     setNameError(hasName ? null : "Please enter a name.");
     setAmountError(hasAmount ? null : "Please enter an amount.");
-    if (!hasName || !hasAmount) return;
+    setPaymentDayError(
+      hasPaymentDay ? null : "Please enter a day between 1 and 31.",
+    );
+    if (!hasName || !hasAmount || !hasPaymentDay) return;
     onAdd({
       id: crypto.randomUUID(),
       name: trimmedName,
       amount: parsed,
+      paymentDay: parsedPaymentDay,
     });
     setName("");
     setAmount("");
+    setPaymentDay("");
     setNameError(null);
     setAmountError(null);
+    setPaymentDayError(null);
   };
 
   const startEdit = (item: FixedExpense) => {
     setEditingId(item.id);
     setEditName(item.name);
     setEditAmount(item.amount.toString());
+    setEditPaymentDay(item.paymentDay?.toString() || "");
     setEditNameError(null);
     setEditAmountError(null);
+    setEditPaymentDayError(null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditName("");
     setEditAmount("");
+    setEditPaymentDay("");
     setEditNameError(null);
     setEditAmountError(null);
+    setEditPaymentDayError(null);
   };
 
   const handleUpdate = (item: FixedExpense) => {
     const trimmedName = editName.trim();
     const parsed = Number(editAmount);
+    const parsedPaymentDay = Number(editPaymentDay);
     const hasName = Boolean(trimmedName);
     const hasAmount = Number.isFinite(parsed) && parsed > 0;
+    const hasPaymentDay =
+      Number.isInteger(parsedPaymentDay) &&
+      parsedPaymentDay >= 1 &&
+      parsedPaymentDay <= 31;
     setEditNameError(hasName ? null : "Please enter a name.");
     setEditAmountError(hasAmount ? null : "Please enter an amount.");
-    if (!hasName || !hasAmount) return;
+    setEditPaymentDayError(
+      hasPaymentDay ? null : "Please enter a day between 1 and 31.",
+    );
+    if (!hasName || !hasAmount || !hasPaymentDay) return;
 
     onUpdate({
       ...item,
       name: trimmedName,
       amount: parsed,
+      paymentDay: parsedPaymentDay,
     });
     cancelEdit();
   };
@@ -110,7 +138,7 @@ export function FixedExpensesCard({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-[1.5fr_1fr_auto]">
+      <div className="grid gap-2 sm:grid-cols-[1.5fr_1fr_0.8fr_auto]">
         <div>
           <Input
             id="fixed-expenses-name"
@@ -147,6 +175,27 @@ export function FixedExpensesCard({
             <p className="mt-1 text-xs text-destructive">{amountError}</p>
           )}
         </div>
+        <div>
+          <Input
+            id="fixed-expenses-payment-day"
+            placeholder="Day"
+            type="number"
+            min="1"
+            max="31"
+            step="1"
+            value={paymentDay}
+            onChange={(e) => {
+              setPaymentDay(e.target.value);
+              if (paymentDayError) setPaymentDayError(null);
+            }}
+            onWheel={(e) => e.currentTarget.blur()}
+            className="bg-background"
+            aria-invalid={Boolean(paymentDayError)}
+          />
+          {paymentDayError && (
+            <p className="mt-1 text-xs text-destructive">{paymentDayError}</p>
+          )}
+        </div>
         <Button onClick={handleAdd} size="sm" data-testid="fixed-expenses-add">
           <Plus className="h-4 w-4" />
           Add
@@ -166,7 +215,7 @@ export function FixedExpensesCard({
               data-testid={`fixed-expense-item-${item.id}`}
             >
               {editingId === item.id ? (
-                <div className="grid gap-2 sm:grid-cols-[1.5fr_1fr_auto_auto]">
+                <div className="grid gap-2 sm:grid-cols-[1.5fr_1fr_0.8fr_auto_auto]">
                   <div>
                     <Input
                       aria-label="Fixed expense name"
@@ -205,6 +254,28 @@ export function FixedExpensesCard({
                       </p>
                     )}
                   </div>
+                  <div>
+                    <Input
+                      aria-label="Fixed expense payment day"
+                      type="number"
+                      min="1"
+                      max="31"
+                      step="1"
+                      value={editPaymentDay}
+                      onChange={(e) => {
+                        setEditPaymentDay(e.target.value);
+                        if (editPaymentDayError) setEditPaymentDayError(null);
+                      }}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      className="bg-background"
+                      aria-invalid={Boolean(editPaymentDayError)}
+                    />
+                    {editPaymentDayError && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {editPaymentDayError}
+                      </p>
+                    )}
+                  </div>
                   <Button
                     size="sm"
                     onClick={() => handleUpdate(item)}
@@ -231,6 +302,7 @@ export function FixedExpensesCard({
                     </p>
                     <p className="text-xs text-muted-foreground">
                       £{item.amount.toFixed(2)}
+                      {item.paymentDay ? ` · Day ${item.paymentDay}` : ""}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">

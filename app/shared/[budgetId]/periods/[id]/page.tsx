@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { FixedExpense, Period, Expense } from "@/lib/types"
 import {
+  buildFixedExpenseEntries,
   getFixedExpensesForPeriod,
   getTotalSpentForPeriod,
   snapshotFixedExpenses,
@@ -175,11 +176,32 @@ export default function SharedPeriodEditPage() {
     dirtyRef.current = true
     setPeriod((prev) => {
       if (!prev) return prev
-      if (value && !prev.fixedExpensesSnapshot) {
+      if (!value) {
         return {
           ...prev,
           includeFixedExpenses: value,
-          fixedExpensesSnapshot: snapshotFixedExpenses(fixedExpenses),
+          fixedExpensesAppliedToExpenses: false,
+          expenses: prev.expenses.filter((expense) => !expense.fixedExpenseId),
+        }
+      }
+      if (!prev.fixedExpensesAppliedToExpenses) {
+        const fixedExpensesSnapshot =
+          prev.fixedExpensesSnapshot ?? snapshotFixedExpenses(fixedExpenses)
+        const fixedExpenseEntries = buildFixedExpenseEntries(
+          fixedExpensesSnapshot,
+          prev.startDate,
+          prev.endDate,
+          () => crypto.randomUUID(),
+        )
+        return {
+          ...prev,
+          includeFixedExpenses: value,
+          fixedExpensesSnapshot,
+          fixedExpensesAppliedToExpenses: true,
+          expenses: [
+            ...prev.expenses.filter((expense) => !expense.fixedExpenseId),
+            ...fixedExpenseEntries,
+          ],
         }
       }
       return { ...prev, includeFixedExpenses: value }

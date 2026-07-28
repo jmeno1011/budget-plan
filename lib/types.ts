@@ -4,6 +4,7 @@ export interface Expense {
   amount: number
   memo?: string
   category?: string
+  fixedExpenseId?: string
 }
 
 export interface Period {
@@ -15,12 +16,14 @@ export interface Period {
   budget?: number
   includeFixedExpenses?: boolean
   fixedExpensesSnapshot?: FixedExpense[]
+  fixedExpensesAppliedToExpenses?: boolean
 }
 
 export interface FixedExpense {
   id: string
   name: string
   amount: number
+  paymentDay?: number
 }
 
 export interface SharedBudget {

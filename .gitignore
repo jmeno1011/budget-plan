@@ -33,3 +33,7 @@ cypress/screenshots
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#readme
+database.md
+detail-readme.md

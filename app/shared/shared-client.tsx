@@ -868,7 +868,7 @@ export default function SharedPage() {
                       Fixed £{activeFixedTotal.toFixed(2)}
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                       <DialogTitle>Fixed expenses</DialogTitle>
                     </DialogHeader>

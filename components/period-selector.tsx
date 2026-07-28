@@ -15,7 +15,10 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { FixedExpense, Period } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
-import { snapshotFixedExpenses } from "@/lib/fixed-expenses";
+import {
+  buildFixedExpenseEntries,
+  snapshotFixedExpenses,
+} from "@/lib/fixed-expenses";
 
 interface PeriodSelectorProps {
   onCreatePeriod: (period: Period) => void;
@@ -73,8 +76,10 @@ export function PeriodSelector({
   const handleCreate = () => {
     if (!periodName || !startDate || !endDate) return;
 
+    const startDateValue = format(startDate, "yyyy-MM-dd");
+    const endDateValue = format(endDate, "yyyy-MM-dd");
     const days = eachDayOfInterval({ start: startDate, end: endDate });
-    const expenses = days.map((day) => ({
+    const dailyExpenses = days.map((day) => ({
       id: crypto.randomUUID(),
       date: format(day, "yyyy-MM-dd"),
       amount: 0,
@@ -94,17 +99,26 @@ export function PeriodSelector({
     const fixedExpensesSnapshot = includeFixedExpenses
       ? snapshotFixedExpenses(fixedExpenses)
       : undefined;
+    const fixedExpenseEntries = fixedExpensesSnapshot
+      ? buildFixedExpenseEntries(
+          fixedExpensesSnapshot,
+          startDateValue,
+          endDateValue,
+          () => crypto.randomUUID(),
+        )
+      : [];
 
     const newPeriod: Period = {
       id: crypto.randomUUID(),
       name: periodName,
-      startDate: format(startDate, "yyyy-MM-dd"),
-      endDate: format(endDate, "yyyy-MM-dd"),
-      expenses,
+      startDate: startDateValue,
+      endDate: endDateValue,
+      expenses: [...dailyExpenses, ...fixedExpenseEntries],
       includeFixedExpenses,
     };
     if (fixedExpensesSnapshot) {
       newPeriod.fixedExpensesSnapshot = fixedExpensesSnapshot;
+      newPeriod.fixedExpensesAppliedToExpenses = true;
     }
     if (finalBudget !== undefined) {
       newPeriod.budget = finalBudget;
