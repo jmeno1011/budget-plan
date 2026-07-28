@@ -33,4 +33,30 @@ describe('PeriodCard', () => {
     fireEvent.click(screen.getByTestId('period-card-header'))
     expect(screen.getByText('Spending entries')).toBeInTheDocument()
   })
+
+  it('shows category breakdown on the period card header', () => {
+    render(
+      <PeriodCard
+        period={{
+          id: 'p-1',
+          name: 'July budget',
+          startDate: '2026-07-01',
+          endDate: '2026-07-03',
+          expenses: [
+            { id: 'e-1', date: '2026-07-01', amount: 905, category: 'utilities' },
+            { id: 'e-2', date: '2026-07-02', amount: 85, category: 'food' },
+            { id: 'e-3', date: '2026-07-03', amount: 30, category: 'shopping' },
+            { id: 'e-4', date: '2026-07-03', amount: 10 },
+          ],
+        }}
+        onDelete={jest.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('period-category-breakdown')).toBeInTheDocument()
+    expect(screen.getByText('Utilities £905.00')).toBeInTheDocument()
+    expect(screen.getByText('Food £85.00')).toBeInTheDocument()
+    expect(screen.getByText('Shopping £30.00')).toBeInTheDocument()
+    expect(screen.getByText('3 categories')).toBeInTheDocument()
+  })
 })

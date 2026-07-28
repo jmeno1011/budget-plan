@@ -1,15 +1,11 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { eachDayOfInterval, format, parseISO } from "date-fns"
-import { enGB } from "date-fns/locale"
-import {
-  Pencil,
-  PoundSterling,
-  Trash2,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import Link from "next/link";
+import { eachDayOfInterval, format, parseISO } from "date-fns";
+import { enGB } from "date-fns/locale";
+import { Pencil, PoundSterling, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,19 +16,42 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { CATEGORIES, type FixedExpense, type Period } from "@/lib/types"
+} from "@/components/ui/alert-dialog";
+import { CATEGORIES, type FixedExpense, type Period } from "@/lib/types";
 import {
   getFixedExpensesForPeriod,
   getFixedExpensesTotalForPeriod,
   getTotalSpentForPeriod,
-} from "@/lib/fixed-expenses"
+} from "@/lib/fixed-expenses";
+
+const CATEGORY_COLOR_CLASSES = [
+  {
+    bar: "bg-[#f97316]",
+    chip: "text-[#f97316]",
+  },
+  {
+    bar: "bg-[#3b9df0]",
+    chip: "text-[#3b9df0]",
+  },
+  {
+    bar: "bg-[#22c55e]",
+    chip: "text-[#22c55e]",
+  },
+  {
+    bar: "bg-[#db5a9d]",
+    chip: "text-[#db5a9d]",
+  },
+  {
+    bar: "bg-[#8b5cf6]",
+    chip: "text-[#8b5cf6]",
+  },
+] as const;
 
 interface PeriodCardProps {
-  period: Period
-  onDelete: (id: string) => void
-  editHref?: string
-  fixedExpenses?: FixedExpense[]
+  period: Period;
+  onDelete: (id: string) => void;
+  editHref?: string;
+  fixedExpenses?: FixedExpense[];
 }
 
 export function PeriodCard({
@@ -41,69 +60,84 @@ export function PeriodCard({
   editHref,
   fixedExpenses = [],
 }: PeriodCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const editStorageKey = "budget-plan-edit-period"
+  const [isExpanded, setIsExpanded] = useState(false);
+  const editStorageKey = "budget-plan-edit-period";
 
-  const fixedItems = getFixedExpensesForPeriod(period, fixedExpenses)
-  const fixedTotal = getFixedExpensesTotalForPeriod(period, fixedExpenses)
-  const totalSpent = getTotalSpentForPeriod(period, fixedExpenses)
-  
-  const categoryTotals = period.expenses.reduce((acc, exp) => {
-    if (exp.category && exp.amount !== 0) {
-      acc[exp.category] = (acc[exp.category] || 0) + exp.amount
-    }
-    return acc
-  }, {} as Record<string, number>)
+  const fixedItems = getFixedExpensesForPeriod(period, fixedExpenses);
+  const fixedTotal = getFixedExpensesTotalForPeriod(period, fixedExpenses);
+  const totalSpent = getTotalSpentForPeriod(period, fixedExpenses);
+
+  const categoryTotals = period.expenses.reduce(
+    (acc, exp) => {
+      if (exp.category && exp.amount !== 0) {
+        acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+  const categoryBreakdown = Object.entries(categoryTotals)
+    .map(([categoryValue, amount]) => ({
+      amount,
+      category: CATEGORIES.find((category) => category.value === categoryValue),
+      categoryValue,
+    }))
+    .filter((item) => item.category && item.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+  const categoryBreakdownTotal = categoryBreakdown.reduce(
+    (sum, item) => sum + item.amount,
+    0,
+  );
 
   const formatDate = (dateStr: string) => {
-    return format(parseISO(dateStr), "d MMM yyyy", { locale: enGB })
-  }
+    return format(parseISO(dateStr), "d MMM yyyy", { locale: enGB });
+  };
 
   const formatDateShort = (dateStr: string) => {
-    return format(parseISO(dateStr), "d/M", { locale: enGB })
-  }
+    return format(parseISO(dateStr), "d/M", { locale: enGB });
+  };
 
   const formatExpenseDate = (dateStr: string) => {
-    return format(parseISO(dateStr), "d MMM (EEE)", { locale: enGB })
-  }
+    return format(parseISO(dateStr), "d MMM (EEE)", { locale: enGB });
+  };
 
   const formatMoney = (value: number) => {
     if (value < 0) {
-      return `-£${Math.abs(value).toFixed(2)}`
+      return `-£${Math.abs(value).toFixed(2)}`;
     }
-    return `£${value.toFixed(2)}`
-  }
+    return `£${value.toFixed(2)}`;
+  };
 
   const storeEditPeriod = () => {
     try {
-      sessionStorage.setItem(editStorageKey, JSON.stringify(period))
+      sessionStorage.setItem(editStorageKey, JSON.stringify(period));
     } catch (e) {
       // ignore storage failures
     }
-  }
+  };
 
   const periodDays = eachDayOfInterval({
     start: parseISO(period.startDate),
     end: parseISO(period.endDate),
-  })
+  });
 
   const dailyActivity = periodDays.map((day) => {
-    const date = format(day, "yyyy-MM-dd")
+    const date = format(day, "yyyy-MM-dd");
     const total = period.expenses
       .filter((expense) => expense.date === date)
-      .reduce((sum, expense) => sum + expense.amount, 0)
-    return { date, total }
-  })
-  const spentDays = dailyActivity.filter((day) => day.total > 0).length
-  const noSpendDays = dailyActivity.length - spentDays
+      .reduce((sum, expense) => sum + expense.amount, 0);
+    return { date, total };
+  });
+  const spentDays = dailyActivity.filter((day) => day.total > 0).length;
+  const noSpendDays = dailyActivity.length - spentDays;
 
   const getActivityClass = (amount: number) => {
-    if (amount <= 0) return "bg-muted"
-    if (amount <= 25) return "bg-primary/20"
-    if (amount <= 75) return "bg-primary/40"
-    if (amount <= 150) return "bg-primary/70"
-    return "bg-primary"
-  }
+    if (amount <= 0) return "bg-muted";
+    if (amount <= 25) return "bg-primary/20";
+    if (amount <= 75) return "bg-primary/40";
+    if (amount <= 150) return "bg-primary/70";
+    return "bg-primary";
+  };
 
   return (
     <div
@@ -121,70 +155,84 @@ export function PeriodCard({
               <PoundSterling className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-sm font-semibold text-card-foreground sm:text-lg">{period.name}</h3>
+              <h3 className="truncate text-sm font-semibold text-card-foreground sm:text-lg">
+                {period.name}
+              </h3>
               <p className="text-xs text-muted-foreground">
-                <span className="sm:hidden">{formatDateShort(period.startDate)} ~ {formatDateShort(period.endDate)}</span>
-                <span className="hidden sm:inline">{formatDate(period.startDate)} ~ {formatDate(period.endDate)}</span>
+                <span className="sm:hidden">
+                  {formatDateShort(period.startDate)} ~{" "}
+                  {formatDateShort(period.endDate)}
+                </span>
+                <span className="hidden sm:inline">
+                  {formatDate(period.startDate)} ~ {formatDate(period.endDate)}
+                </span>
               </p>
             </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <div className="text-right">
-              <p className="hidden text-xs text-muted-foreground sm:block">Total spent</p>
-              <p className="text-base font-bold text-primary sm:text-xl">{formatMoney(totalSpent)}</p>
+              <p className="hidden text-xs text-muted-foreground sm:block">
+                Total spent
+              </p>
+              <p className="text-base font-bold text-primary sm:text-xl">
+                {formatMoney(totalSpent)}
+              </p>
             </div>
-            <Button
-              asChild
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9"
-            >
-              <Link
-                href={editHref || `/periods/${period.id}`}
-                aria-label="Edit period"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  storeEditPeriod()
-                }}
+            <div className="flex items-center gap-0.5">
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 sm:h-9 sm:w-9"
               >
-                <Pencil className="h-4 w-4" />
-              </Link>
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Delete period"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive sm:h-9 sm:w-9"
+                <Link
+                  href={editHref || `/periods/${period.id}`}
+                  aria-label="Edit period"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    storeEditPeriod();
+                  }}
                 >
-                  <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this period?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    All spending entries in this period will be deleted. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => onDelete(period.id)}
-                    className="bg-destructive text-white hover:bg-destructive/90"
+                  <Pencil className="h-4 w-4" />
+                </Link>
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Delete period"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive sm:h-9 sm:w-9"
                   >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    <Trash2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this period?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      All spending entries in this period will be deleted. This
+                      action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete(period.id)}
+                      className="bg-destructive text-white hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
 
-        <div className="mt-3 grid gap-2 sm:ml-[52px] sm:grid-cols-[1fr_auto] sm:items-end">
+        <div className="mt-3 grid gap-2 sm:ml-13 sm:grid-cols-[1fr_auto] sm:items-end">
           <div className="grid grid-cols-7 gap-1 sm:grid-cols-[repeat(auto-fit,minmax(10px,16px))]">
             {dailyActivity.map((day) => (
               <div
@@ -199,6 +247,63 @@ export function PeriodCard({
             {spentDays} spent · {noSpendDays} no-spend
           </p>
         </div>
+
+        {categoryBreakdown.length > 0 && (
+          <div
+            className="mt-3 space-y-2 sm:ml-13"
+            data-testid="period-category-breakdown"
+          >
+            <div
+              className="flex h-3 overflow-hidden rounded-full bg-muted ring-1 ring-border/60"
+              aria-label={`Category breakdown: ${categoryBreakdown
+                .map(
+                  (item) =>
+                    `${item.category?.label} ${Math.round(
+                      (item.amount / categoryBreakdownTotal) * 100,
+                    )}%`,
+                )
+                .join(", ")}`}
+            >
+              {categoryBreakdown.map((item, index) => {
+                const color =
+                  CATEGORY_COLOR_CLASSES[index % CATEGORY_COLOR_CLASSES.length];
+                return (
+                  <div
+                    key={item.categoryValue}
+                    className={color.bar}
+                    style={{
+                      width: `${(item.amount / categoryBreakdownTotal) * 100}%`,
+                    }}
+                    title={`${item.category?.label} ${formatMoney(item.amount)}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {categoryBreakdown.slice(0, 5).map((item, index) => {
+                const color =
+                  CATEGORY_COLOR_CLASSES[index % CATEGORY_COLOR_CLASSES.length];
+                return (
+                  <span
+                    key={item.categoryValue}
+                    className="inline-flex h-6 items-center gap-1.5 rounded-full border border-border bg-secondary/60 px-2 text-[11px] font-medium leading-none"
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${color.bar}`}
+                      aria-hidden="true"
+                    />
+                    <span className={color.chip + " font-bold"}>
+                      {item.category?.label} {formatMoney(item.amount)}
+                    </span>
+                  </span>
+                );
+              })}
+              <span className="text-xs text-muted-foreground">
+                {categoryBreakdown.length} categories
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {isExpanded && (
@@ -238,28 +343,36 @@ export function PeriodCard({
           )}
 
           <div className="mb-2.5 flex items-center justify-between sm:mb-3">
-            <p className="text-sm font-medium text-foreground">Spending entries</p>
+            <p className="text-sm font-medium text-foreground">
+              Spending entries
+            </p>
           </div>
           {Object.keys(categoryTotals).length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5 sm:mb-4 sm:gap-2">
               {Object.entries(categoryTotals).map(([cat, amount]) => {
-                const category = CATEGORIES.find((c) => c.value === cat)
+                const category = CATEGORIES.find((c) => c.value === cat);
                 return (
                   <div
                     key={cat}
                     className="rounded-full bg-secondary px-2 py-0.5 text-xs sm:px-2.5 sm:py-1"
                   >
-                    <span className="text-muted-foreground">{category?.label}: </span>
-                    <span className="font-medium text-foreground">{formatMoney(amount)}</span>
+                    <span className="text-muted-foreground">
+                      {category?.label}:{" "}
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {formatMoney(amount)}
+                    </span>
                   </div>
-                )
+                );
               })}
             </div>
           )}
 
           <div className="space-y-1.5">
             {period.expenses.map((expense) => {
-              const category = CATEGORIES.find((c) => c.value === expense.category)
+              const category = CATEGORIES.find(
+                (c) => c.value === expense.category,
+              );
               return (
                 <div
                   key={expense.id}
@@ -277,16 +390,22 @@ export function PeriodCard({
                     <span className="rounded-full bg-secondary px-2 py-0.5 text-muted-foreground">
                       {category?.label ?? "No category"}
                     </span>
-                    <span className={expense.memo ? "text-foreground" : "text-muted-foreground"}>
+                    <span
+                      className={
+                        expense.memo
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                      }
+                    >
                       {expense.memo || "No note"}
                     </span>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
