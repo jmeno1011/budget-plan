@@ -186,6 +186,14 @@ export default function PeriodEditPage() {
     })
   }
 
+  const handleNameChange = (value: string) => {
+    dirtyRef.current = true
+    setPeriod((prev) => {
+      if (!prev) return prev
+      return { ...prev, name: value }
+    })
+  }
+
   const handleIncludeFixedChange = (value: boolean) => {
     dirtyRef.current = true
     setPeriod((prev) => {
@@ -342,6 +350,20 @@ export default function PeriodEditPage() {
             </h2>
           </div>
           <div className="mb-4 grid gap-2 sm:grid-cols-2 sm:items-center">
+            <Label
+              htmlFor="period-name"
+              className="text-sm text-muted-foreground sm:text-right"
+            >
+              Period title
+            </Label>
+            <Input
+              id="period-name"
+              type="text"
+              placeholder="e.g. July budget"
+              value={period.name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              className="bg-background border-border text-foreground placeholder:text-muted-foreground"
+            />
             <Label
               htmlFor="period-budget"
               className="text-sm text-muted-foreground sm:text-right"

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { SpendingChart } from '@/components/spending-chart'
 
 const rechartsProps: {
-  barChartMargin?: { left?: number }
+  barChartMargin?: { left?: number; top?: number }
   yAxisRendered?: boolean
 } = {}
 
@@ -13,7 +13,7 @@ jest.mock('recharts', () => ({
     margin,
   }: {
     children?: React.ReactNode
-    margin?: { left?: number }
+    margin?: { left?: number; top?: number }
   }) => {
     rechartsProps.barChartMargin = margin
     return <div>{children}</div>
@@ -66,6 +66,7 @@ describe('SpendingChart', () => {
     )
 
     expect(rechartsProps.barChartMargin?.left).toBe(0)
+    expect(rechartsProps.barChartMargin?.top).toBeGreaterThanOrEqual(28)
     expect(rechartsProps.yAxisRendered).toBe(false)
     expect(screen.getByText('£1473.91')).toHaveClass('hidden', 'sm:inline')
   })

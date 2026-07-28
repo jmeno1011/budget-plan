@@ -31,10 +31,13 @@ describe('Home page', () => {
 
     expect(await screen.findByText('Budget Plan')).toBeInTheDocument()
     expect(
-      screen.getByText('Plan every period in one place'),
+      screen.getByRole('heading', {
+        name: /share a budget without sharing a bank/i,
+      }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Personal and shared views')).toBeInTheDocument()
-    expect(screen.getByText('Invite by link')).toBeInTheDocument()
-    expect(screen.getByText('Spending analytics')).toBeInTheDocument()
+    expect(screen.getByText(/one person uses monzo/i)).toBeInTheDocument()
+    expect(screen.getByText('No bank migration')).toBeInTheDocument()
+    expect(screen.getByText('Shared fixed costs')).toBeInTheDocument()
+    expect(screen.getByText('Simple period view')).toBeInTheDocument()
   })
 })

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { HeroSection } from "@/components/hero-section";
-import { SignInCard } from "@/components/sign-in-card";
 import { PeriodSelector } from "@/components/period-selector";
 import { PeriodCard } from "@/components/period-card";
 import { SpendingChart } from "@/components/spending-chart";
@@ -18,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { FixedExpense, Period } from "@/lib/types";
-import { Plus, Wallet } from "lucide-react";
+import { Building2, CalendarDays, Plus, Users, Wallet } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
@@ -298,78 +297,25 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-6xl px-4 py-12 md:px-8 md:py-20">
-          <div className="grid items-start gap-8 lg:grid-cols-5 lg:gap-12">
-            <div className="lg:col-span-3">
-              <HeroSection />
-            </div>
-            <div className="lg:col-span-2">
-              <div className="lg:sticky lg:top-8">
-                <SignInCard />
-              </div>
-            </div>
-          </div>
+        <main className="mx-auto max-w-6xl px-4 py-10 md:px-8 md:py-16">
+          <HeroSection />
 
-          <section className="mt-16 md:mt-24">
-            <div className="grid gap-6 md:grid-cols-3">
+          <section className="mt-10 md:mt-14">
+            <div className="grid gap-3 md:grid-cols-3">
               <FeatureCard
-                icon={
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                  >
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                }
-                title="Shared budgets"
-                description="Collaborate with housemates to track shared expenses and split costs fairly."
+                icon={<Building2 className="h-5 w-5" />}
+                title="No bank migration"
+                description="Keep Monzo, Revolut, or anything else. Track only the budget you share."
               />
               <FeatureCard
-                icon={
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                  >
-                    <path d="M3 3v18h18" />
-                    <path d="m19 9-5 5-4-4-3 3" />
-                  </svg>
-                }
-                title="Spending analytics"
-                description="Visualize spending patterns with charts and track your budget performance."
+                icon={<Users className="h-5 w-5" />}
+                title="Shared fixed costs"
+                description="Rent, internet, and bills appear on the right payment days for everyone."
               />
               <FeatureCard
-                icon={
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                }
-                title="Period tracking"
-                description="Organize spending by time periods to compare budgets month over month."
+                icon={<CalendarDays className="h-5 w-5" />}
+                title="Simple period view"
+                description="Compare months and spot spending days without spreadsheet work."
               />
             </div>
           </section>
@@ -550,11 +496,11 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="group rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/80 hover:shadow-xl hover:shadow-primary/20">
+    <div className="group rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/80 hover:shadow-sm">
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
         {icon}
       </div>
-      <h3 className="mt-4 text-base font-semibold text-foreground">{title}</h3>
+      <h3 className="mt-3 text-base font-semibold text-foreground">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         {description}
       </p>

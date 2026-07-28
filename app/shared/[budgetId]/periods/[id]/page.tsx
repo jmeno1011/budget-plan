@@ -172,6 +172,14 @@ export default function SharedPeriodEditPage() {
     })
   }
 
+  const handleNameChange = (value: string) => {
+    dirtyRef.current = true
+    setPeriod((prev) => {
+      if (!prev) return prev
+      return { ...prev, name: value }
+    })
+  }
+
   const handleIncludeFixedChange = (value: boolean) => {
     dirtyRef.current = true
     setPeriod((prev) => {
@@ -323,6 +331,20 @@ export default function SharedPeriodEditPage() {
             </h2>
           </div>
           <div className="mb-4 grid gap-2 sm:grid-cols-2 sm:items-center">
+            <Label
+              htmlFor="shared-period-name"
+              className="text-sm text-muted-foreground sm:text-right"
+            >
+              Period title
+            </Label>
+            <Input
+              id="shared-period-name"
+              type="text"
+              placeholder="e.g. Shared July"
+              value={period.name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              className="bg-background border-border text-foreground placeholder:text-muted-foreground"
+            />
             <Label
               htmlFor="shared-period-budget"
               className="text-sm text-muted-foreground sm:text-right"

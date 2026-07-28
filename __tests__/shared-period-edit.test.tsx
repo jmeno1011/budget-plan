@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import PeriodEditPage from '@/app/periods/[id]/page'
+import SharedPeriodEditPage from '@/app/shared/[budgetId]/periods/[id]/page'
 import { onAuthStateChanged } from 'firebase/auth'
 import { onSnapshot, setDoc } from 'firebase/firestore'
 
@@ -8,7 +8,7 @@ const replaceMock = jest.fn()
 const routerMock = { push: pushMock, replace: replaceMock }
 
 jest.mock('next/navigation', () => ({
-  useParams: () => ({ id: 'p-1' }),
+  useParams: () => ({ budgetId: 'budget-1', id: 'p-1' }),
   useRouter: () => routerMock,
 }))
 
@@ -53,7 +53,7 @@ jest.mock('firebase/firestore', () => ({
   setDoc: jest.fn(() => Promise.resolve()),
 }))
 
-describe('Period edit page', () => {
+describe('Shared period edit page', () => {
   beforeEach(() => {
     pushMock.mockClear()
     replaceMock.mockClear()
@@ -71,17 +71,16 @@ describe('Period edit page', () => {
             periods: [
               {
                 id: 'p-1',
-                name: 'Alpha period',
+                name: 'Shared period',
                 startDate: '2026-01-01',
                 endDate: '2026-01-02',
-                includeFixedExpenses: true,
+                includeFixedExpenses: false,
                 expenses: [
                   { id: 'e-1', date: '2026-01-01', amount: 10 },
-                  { id: 'e-2', date: '2026-01-02', amount: 5 },
                 ],
               },
             ],
-            fixedExpenses: [{ id: 'fx-1', name: 'Netflix', amount: 5 }],
+            fixedExpenses: [],
           }),
         })
         return () => {}
@@ -89,33 +88,10 @@ describe('Period edit page', () => {
     )
   })
 
-  it('shows the period title and total spent', async () => {
-    render(<PeriodEditPage />)
-    expect(await screen.findByText('Edit Alpha period')).toBeInTheDocument()
-    expect(screen.getByText('Total spent £20.00')).toBeInTheDocument()
-  })
-
-  it('toggles fixed expenses inclusion', async () => {
-    render(<PeriodEditPage />)
-    const checkbox = await screen.findByLabelText('Include')
-    fireEvent.click(checkbox)
-    expect(await screen.findByText('Total spent £15.00')).toBeInTheDocument()
-  })
-
-  it('navigates home on save', async () => {
-    render(<PeriodEditPage />)
-    const saveButton = await screen.findByRole('button', { name: /save/i })
-    await act(async () => {
-      fireEvent.click(saveButton)
-    })
-    expect(setDoc).toHaveBeenCalled()
-    expect(pushMock).toHaveBeenCalledWith('/')
-  })
-
-  it('saves period title changes', async () => {
-    render(<PeriodEditPage />)
+  it('saves shared period title changes', async () => {
+    render(<SharedPeriodEditPage />)
     const titleInput = await screen.findByLabelText('Period title')
-    fireEvent.change(titleInput, { target: { value: 'January reset' } })
+    fireEvent.change(titleInput, { target: { value: 'Shared reset' } })
 
     const saveButton = screen.getByRole('button', { name: /save/i })
     await act(async () => {
@@ -123,6 +99,7 @@ describe('Period edit page', () => {
     })
 
     const savedData = (setDoc as jest.Mock).mock.calls[0][1]
-    expect(savedData.periods[0].name).toBe('January reset')
+    expect(savedData.periods[0].name).toBe('Shared reset')
+    expect(pushMock).toHaveBeenCalledWith('/shared?budgetId=budget-1')
   })
 })
