@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PeriodSelector } from "@/components/period-selector";
 import { FixedExpensesCard } from "@/components/fixed-expenses-card";
+import { PageLoading } from "@/components/page-loading";
 import { PeriodCard } from "@/components/period-card";
 import { SpendingChart } from "@/components/spending-chart";
 import { SummaryStats } from "@/components/summary-stats";
@@ -775,11 +776,7 @@ export default function SharedPage() {
   const periodsForView = activeSharedBudget?.periods || [];
 
   if (!isLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <PageLoading message="Loading shared budgets" />;
   }
 
   if (!user) {

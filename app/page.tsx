@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { HeroSection } from "@/components/hero-section";
+import { PageLoading } from "@/components/page-loading";
 import { PeriodSelector } from "@/components/period-selector";
 import { PeriodCard } from "@/components/period-card";
 import { SpendingChart } from "@/components/spending-chart";
@@ -17,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { FixedExpense, Period } from "@/lib/types";
-import { Building2, CalendarDays, Plus, Users, Wallet } from "lucide-react";
+import { CalendarDays, Plus, Sparkles, Users, Wallet } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
@@ -268,11 +269,7 @@ export default function Home() {
   };
 
   if (!isLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <PageLoading message="Loading budget data" />;
   }
 
   if (!user) {
@@ -301,21 +298,26 @@ export default function Home() {
           <HeroSection />
 
           <section className="mt-10 md:mt-14">
-            <div className="grid gap-3 md:grid-cols-3">
-              <FeatureCard
-                icon={<Building2 className="h-5 w-5" />}
-                title="No bank migration"
-                description="Keep Monzo, Revolut, or anything else. Track only the budget you share."
-              />
+            <div className="grid gap-3 md:grid-cols-4">
               <FeatureCard
                 icon={<Users className="h-5 w-5" />}
-                title="Shared fixed costs"
-                description="Rent, internet, and bills appear on the right payment days for everyone."
+                title="Shared budgets"
+                description="Keep one view together without moving banks or accounts."
               />
               <FeatureCard
                 icon={<CalendarDays className="h-5 w-5" />}
-                title="Simple period view"
-                description="Compare months and spot spending days without spreadsheet work."
+                title="Fixed expenses"
+                description="Snapshot rent, internet, and recurring bills by period."
+              />
+              <FeatureCard
+                icon={<Sparkles className="h-5 w-5" />}
+                title="AI cleanup"
+                description="Write notes first, then sort missing categories later."
+              />
+              <FeatureCard
+                icon={<Wallet className="h-5 w-5" />}
+                title="Category visuals"
+                description="See where each period went with compact breakdowns."
               />
             </div>
           </section>

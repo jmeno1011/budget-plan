@@ -7,6 +7,7 @@ import { eachDayOfInterval, format, parseISO } from "date-fns"
 import { enGB } from "date-fns/locale"
 import { ArrowLeft, Loader2, Repeat, Sparkles, Wallet } from "lucide-react"
 import { DateExpenseGroup } from "@/components/date-expense-group"
+import { PageLoading } from "@/components/page-loading"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -325,11 +326,7 @@ export default function SharedPeriodEditPage() {
       : null
 
   if (!isLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    )
+    return <PageLoading message="Loading shared period" />
   }
 
   if (!period) {
