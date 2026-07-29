@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import LoginPage from '@/app/login/login-client'
 import { signInWithPopup, signInWithRedirect } from 'firebase/auth'
 
@@ -30,6 +30,8 @@ describe('Login page', () => {
     replaceMock.mockClear()
     ;(signInWithPopup as jest.Mock).mockClear()
     ;(signInWithRedirect as jest.Mock).mockClear()
+    ;(signInWithPopup as jest.Mock).mockResolvedValue(undefined)
+    ;(signInWithRedirect as jest.Mock).mockResolvedValue(undefined)
   })
 
   it('renders the login UI', () => {
@@ -51,5 +53,21 @@ describe('Login page', () => {
     const button = screen.getByRole('button', { name: /continue with google/i })
     fireEvent.click(button)
     expect(signInWithPopup).toHaveBeenCalled()
+  })
+
+  it('shows an authorized domain error instead of falling back to redirect', async () => {
+    ;(signInWithPopup as jest.Mock).mockRejectedValue({
+      code: 'auth/unauthorized-domain',
+    })
+
+    render(<LoginPage />)
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    expect(
+      await screen.findByText(/domain is not authorized/i),
+    ).toBeInTheDocument()
+    await waitFor(() => {
+      expect(signInWithRedirect).not.toHaveBeenCalled()
+    })
   })
 })

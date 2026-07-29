@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { WalletIcon } from "@/components/wallet-icon"
 import { GoogleIcon } from "@/components/google-icon"
+import {
+  getGoogleSignInErrorMessage,
+  shouldSkipGoogleRedirectFallback,
+} from "@/lib/auth-errors"
 import { auth, googleProvider } from "@/lib/firebase"
 import {
   onAuthStateChanged,
@@ -19,6 +23,7 @@ export default function LoginPage() {
   const redirectTo = searchParams.get("redirect") || "/"
   const [isLoading, setIsLoading] = useState(false)
   const [user, setUser] = useState<User | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (currentUser) => {
@@ -32,13 +37,20 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setIsLoading(true)
+    setError(null)
     try {
       await signInWithPopup(auth, googleProvider)
       router.replace(redirectTo)
     } catch (e) {
+      if (shouldSkipGoogleRedirectFallback(e)) {
+        setError(getGoogleSignInErrorMessage(e))
+        setIsLoading(false)
+        return
+      }
       try {
         await signInWithRedirect(auth, googleProvider)
-      } finally {
+      } catch (redirectError) {
+        setError(getGoogleSignInErrorMessage(redirectError))
         setIsLoading(false)
       }
     }
@@ -91,6 +103,14 @@ export default function LoginPage() {
               <GoogleIcon className="h-5 w-5" />
               Continue with Google
             </button>
+            {error && (
+              <p
+                role="alert"
+                className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm leading-relaxed text-destructive"
+              >
+                {error}
+              </p>
+            )}
           </div>
 
           <p className="mt-8 text-center text-sm leading-relaxed text-muted-foreground">

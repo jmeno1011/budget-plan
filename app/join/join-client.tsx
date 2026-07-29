@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  getGoogleSignInErrorMessage,
+  shouldSkipGoogleRedirectFallback,
+} from "@/lib/auth-errors"
 import { auth, db, googleProvider } from "@/lib/firebase"
 import { collectionName } from "@/lib/firestore-paths"
 import {
@@ -89,10 +93,19 @@ export default function JoinClient() {
   }, [user, code, status, router])
 
   const handleLogin = async () => {
+    setError(null)
     try {
       await signInWithPopup(auth, googleProvider)
     } catch (e) {
-      await signInWithRedirect(auth, googleProvider)
+      if (shouldSkipGoogleRedirectFallback(e)) {
+        setError(getGoogleSignInErrorMessage(e))
+        return
+      }
+      try {
+        await signInWithRedirect(auth, googleProvider)
+      } catch (redirectError) {
+        setError(getGoogleSignInErrorMessage(redirectError))
+      }
     }
   }
 
@@ -118,6 +131,11 @@ export default function JoinClient() {
             <Button onClick={handleLogin} className="w-full">
               Continue with Google
             </Button>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
           </>
         )}
         {user && status === "joining" && (
